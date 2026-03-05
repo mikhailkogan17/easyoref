@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+# Pre-commit hook: block secrets from being committed
+
+echo "🔍 Pre-commit: checking for secrets..."
+
+# Patterns that should NEVER be in committed code
+FORBIDDEN_PATTERNS=(
+  'BOT_TOKEN=[0-9]'
+  'LOGTAIL_TOKEN=[a-zA-Z0-9]'
+  'sk-[a-zA-Z0-9]{20,}'
+  'ghp_[a-zA-Z0-9]{36}'
+  'AAAA[a-zA-Z0-9_-]{30,}'
+)
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+EXIT_CODE=0
+
+for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
+  MATCHES=$(echo "$STAGED" | xargs grep -lE "$pattern" 2>/dev/null || true)
+  if [ -n "$MATCHES" ]; then
+    echo "❌ Secret pattern found: $pattern"
+    echo "   Files: $MATCHES"
+    EXIT_CODE=1
+  fi
+done
+
+if [ $EXIT_CODE -ne 0 ]; then
+  echo ""
+  echo "🚫 Commit blocked — remove secrets before committing."
+  echo "   Use .env files (gitignored) or Docker secrets instead."
+  exit 1
+fi
+
+# Typecheck
+echo "🔧 Pre-commit: type checking..."
+npx tsc --noEmit --project packages/bot/tsconfig.json || exit 1
+
+echo "✅ Pre-commit checks passed"

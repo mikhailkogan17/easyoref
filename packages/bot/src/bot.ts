@@ -15,8 +15,14 @@
 
 import { Bot } from "grammy";
 import { createServer } from "node:http";
-import { config } from "./config.js";
-import { getTemplates, initTranslations, translateAreas } from "./i18n.js";
+import { config, type AlertTypeConfig } from "./config.js";
+import { initGifState, pickGif } from "./gif-state.js";
+import {
+  getTemplates,
+  initTranslations,
+  resolveCityIds,
+  translateAreas,
+} from "./i18n.js";
 import * as logger from "./logger.js";
 
 const templates = getTemplates(config.language);
@@ -52,6 +58,13 @@ function matchedAreaLabel(alertAreas: string[]): string {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 type AlertType = "early_warning" | "siren" | "resolved";
+
+/** Map internal AlertType → YAML config key */
+const ALERT_TYPE_TO_CONFIG: Record<AlertType, AlertTypeConfig> = {
+  early_warning: "early",
+  siren: "siren",
+  resolved: "incident_over",
+};
 
 function classifyAlertType(title: string): AlertType {
   if (title.includes("האירוע הסתיים")) return "resolved";
@@ -159,7 +172,10 @@ async function fetchAlerts(): Promise<OrefAlert[]> {
     }
 
     if (parsed && typeof parsed === "object" && "id" in parsed) {
-      logger.info("Oref poll — single alert", { ms, raw: text.slice(0, 2000) });
+      logger.info("Oref poll — single alert", {
+        ms,
+        raw: text.slice(0, 2000),
+      });
       return [parsed as OrefAlert];
     }
 
@@ -175,51 +191,81 @@ async function fetchAlerts(): Promise<OrefAlert[]> {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// GIF Pools (random, no repeats until exhausted)
+// GIF Pools by Mode
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const GIFS_EARLY_WARNING = [
-  "https://media.giphy.com/media/wQI5H4jtqZEPK/giphy.gif", // maru jumping into box
-  "https://media.giphy.com/media/pD83kYQkhuhgY/giphy.gif", // cat in box
-  "https://media.giphy.com/media/W2FXGIVejFptc6CSxY/giphy.gif", // cats in boxes
-  "https://media1.tenor.com/m/iM6XLBMUKNcAAAAd/cat-kitty.mp4", // cat high jump into box
+// ── funny_cats ────────────────────────────────────────
+
+const CATS_EARLY_WARNING = [
+  "https://media.giphy.com/media/wQI5H4jtqZEPK/giphy.gif",
+  "https://media.giphy.com/media/pD83kYQkhuhgY/giphy.gif",
+  "https://media.giphy.com/media/W2FXGIVejFptc6CSxY/giphy.gif",
+  "https://media1.tenor.com/m/iM6XLBMUKNcAAAAd/cat-kitty.mp4",
   "https://media1.tenor.com/m/fZ-SvpmkgSUAAAAd/uni-unico.mp4",
 ];
 
-/** Night-only GIFs (03:00–11:00 Israel time) — wake-up cats */
-const GIFS_EARLY_WARNING_NIGHT = [
-  "https://media.giphy.com/media/5UH2PJ8VIEuMqN8V6R/giphy.gif", // sleepy cat
-  "https://media.tenor.com/4gH8RagrsjAAAAPo/wake-up-viralhog.mp4", // cat waking up owner
+const CATS_EARLY_WARNING_NIGHT = [
+  "https://media.giphy.com/media/5UH2PJ8VIEuMqN8V6R/giphy.gif",
+  "https://media.tenor.com/4gH8RagrsjAAAAPo/wake-up-viralhog.mp4",
   "https://media1.tenor.com/m/4NJKe0rdz9AAAAAd/cat-kitty.mp4",
 ];
 
-const GIFS_SIREN = [
-  "https://media1.tenor.com/m/9vcHsGLyJmgAAAAd/cat-alarm-alarm.mp4", // car alarm cat
-  "https://media.tenor.com/Wx3bGh80AWkAAAPo/siren-cat.mp4", // siren cat
-  "https://media.giphy.com/media/WLGJGG9JjpUrmUWkYf/giphy.gif", // flashing lights
+const CATS_SIREN = [
+  "https://media1.tenor.com/m/9vcHsGLyJmgAAAAd/cat-alarm-alarm.mp4",
+  "https://media.tenor.com/Wx3bGh80AWkAAAPo/siren-cat.mp4",
+  "https://media.giphy.com/media/WLGJGG9JjpUrmUWkYf/giphy.gif",
   "https://media1.tenor.com/m/0XHXUdzJ9KIAAAAd/cat-meme.mp4",
   "https://media1.tenor.com/m/J3sih0hnKLwAAAAC/borzoi-siren.mp4",
 ];
 
-const GIFS_RESOLVED = [
-  "https://media.tenor.com/eRGgvoRJNqAAAAPo/cat-silly.mp4", // cat out of box silly
-  "https://media.tenor.com/aePEdx5RyFcAAAPo/cat-petsure.mp4", // cat peeking out
-  "https://media.tenor.com/wP_lARteJosAAAPo/cat-box.mp4", // cat walking out of box
-  "https://media1.tenor.com/m/Td6hJ6AayEgAAAAd/cats-leave.mp4", // cats leaving boxes
-  "https://media1.tenor.com/m/eaLwOMoptpcAAAAd/rexi-im-out.mp4", // cat leaving box
+const CATS_RESOLVED = [
+  "https://media.tenor.com/eRGgvoRJNqAAAAPo/cat-silly.mp4",
+  "https://media.tenor.com/aePEdx5RyFcAAAPo/cat-petsure.mp4",
+  "https://media.tenor.com/wP_lARteJosAAAPo/cat-box.mp4",
+  "https://media1.tenor.com/m/Td6hJ6AayEgAAAAd/cats-leave.mp4",
+  "https://media1.tenor.com/m/eaLwOMoptpcAAAAd/rexi-im-out.mp4",
 ];
 
-/** Shuffle bag per pool — no repeats until all used */
-const gifBags = new Map<string, string[]>();
+// ── assertive ─────────────────────────────────────────
 
-function pickGif(pool: string[], poolKey: string): string {
-  let bag = gifBags.get(poolKey);
-  if (!bag || bag.length === 0) {
-    bag = [...pool].sort(() => Math.random() - 0.5);
-    gifBags.set(poolKey, bag);
-  }
-  return bag.pop()!;
-}
+const ASSERTIVE_EARLY_WARNING = [
+  "https://media.giphy.com/media/3o7TKxOhkp8gO0LXMI/giphy.gif", // radar
+  "https://media.giphy.com/media/l0HlQXlQ3nHyLMvte/giphy.gif", // alert screen
+];
+
+const ASSERTIVE_SIREN = [
+  "https://media.giphy.com/media/3o7TKVfu4JSwmSqiMo/giphy.gif", // flashing red
+  "https://media.giphy.com/media/l0MYt5jPR6QX5APm0/giphy.gif", // warning sign
+];
+
+const ASSERTIVE_RESOLVED = [
+  "https://media.giphy.com/media/XreQmk7ETCak0/giphy.gif", // thumbs up
+  "https://media.giphy.com/media/3oKIPf3C7HGx1NWIJ2/giphy.gif", // all clear
+];
+
+// ── Pool map by mode ──────────────────────────────────
+
+type GifPools = {
+  early: string[];
+  earlyNight: string[];
+  siren: string[];
+  resolved: string[];
+};
+
+const GIF_POOLS: Record<string, GifPools> = {
+  funny_cats: {
+    early: CATS_EARLY_WARNING,
+    earlyNight: [...CATS_EARLY_WARNING, ...CATS_EARLY_WARNING_NIGHT],
+    siren: CATS_SIREN,
+    resolved: CATS_RESOLVED,
+  },
+  assertive: {
+    early: ASSERTIVE_EARLY_WARNING,
+    earlyNight: ASSERTIVE_EARLY_WARNING,
+    siren: ASSERTIVE_SIREN,
+    resolved: ASSERTIVE_RESOLVED,
+  },
+};
 
 /** Is it nighttime in Israel? (03:00–10:59) */
 function isNightInIsrael(): boolean {
@@ -233,18 +279,27 @@ function isNightInIsrael(): boolean {
   return h >= 3 && h < 11;
 }
 
-function getGifUrl(alertType: AlertType): string {
+function getGifUrl(alertType: AlertType): string | null {
+  const mode = config.gifMode;
+
+  // pikud_haoref and none → no GIFs
+  if (mode === "none" || mode === "pikud_haoref") return null;
+
+  const pools = GIF_POOLS[mode];
+  if (!pools) return null;
+
   switch (alertType) {
     case "early_warning": {
-      const pool = isNightInIsrael()
-        ? [...GIFS_EARLY_WARNING, ...GIFS_EARLY_WARNING_NIGHT]
-        : GIFS_EARLY_WARNING;
-      return pickGif(pool, isNightInIsrael() ? "early_night" : "early");
+      const pool = isNightInIsrael() ? pools.earlyNight : pools.early;
+      return pickGif(
+        pool,
+        isNightInIsrael() ? `${mode}_early_night` : `${mode}_early`,
+      );
     }
     case "siren":
-      return pickGif(GIFS_SIREN, "siren");
+      return pickGif(pools.siren, `${mode}_siren`);
     case "resolved":
-      return pickGif(GIFS_RESOLVED, "resolved");
+      return pickGif(pools.resolved, `${mode}_resolved`);
   }
 }
 
@@ -267,6 +322,7 @@ function initBot(): Bot | null {
     chat_id: config.chatId.slice(0, -4) + "****",
     language: config.language,
     areas: config.areas,
+    gif_mode: config.gifMode,
   });
   return new Bot(config.botToken);
 }
@@ -282,6 +338,27 @@ function nowHHMM(): string {
 function formatMessage(alertType: AlertType, areas: string): string {
   const time = nowHHMM();
   const localAreas = translateAreas(areas, config.language);
+  const cfgKey = ALERT_TYPE_TO_CONFIG[alertType];
+  const titleOvr = config.titleOverride[cfgKey];
+  const descOvr = config.descriptionOverride[cfgKey];
+
+  // If user provided both title and description overrides → fully custom message
+  if (titleOvr && descOvr) {
+    return [
+      `<b>${titleOvr}</b>`,
+      descOvr,
+      "",
+      "<blockquote>",
+      `<b>${config.language === "he" ? "אזור" : config.language === "ar" ? "المنطقة" : config.language === "en" ? "Area" : "Район"}:</b> ${localAreas}`,
+      alertType !== "resolved"
+        ? `<b>${config.language === "he" ? "שעה" : config.language === "ar" ? "الوقت" : config.language === "en" ? "Time" : "Время"}:</b> ${time}`
+        : "",
+      "</blockquote>",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
   switch (alertType) {
     case "early_warning":
       return templates.earlyWarning(localAreas, time);
@@ -300,7 +377,24 @@ async function sendTelegram(alertType: AlertType, text: string): Promise<void> {
     });
     return;
   }
+
   const gifUrl = getGifUrl(alertType);
+
+  // No GIF mode → send text only
+  if (!gifUrl) {
+    try {
+      await bot.api.sendMessage(config.chatId, text, { parse_mode: "HTML" });
+      logger.info("Alert sent via Telegram (text)", { type: alertType });
+    } catch (err) {
+      logger.error("Telegram send failed", {
+        error: String(err),
+        type: alertType,
+      });
+    }
+    return;
+  }
+
+  // GIF mode → try animation, fall back to text
   try {
     await bot.api.sendAnimation(config.chatId, gifUrl, {
       caption: text,
@@ -311,7 +405,6 @@ async function sendTelegram(alertType: AlertType, text: string): Promise<void> {
       gif_url: gifUrl,
     });
   } catch (err) {
-    // GIF failed — send text-only fallback
     logger.warn("GIF send failed, falling back to text", {
       error: String(err),
       gif_url: gifUrl,
@@ -344,6 +437,18 @@ function processAlert(alert: OrefAlert): void {
   }
 
   const alertType = classifyAlertType(alert.title);
+
+  // Filter by configured alert types
+  const cfgKey = ALERT_TYPE_TO_CONFIG[alertType];
+  if (!config.alertTypes.includes(cfgKey)) {
+    logger.info("Alert type filtered out by config", {
+      alert_id: alert.id,
+      type: alertType,
+      config_key: cfgKey,
+    });
+    return;
+  }
+
   const areas = matchedAreaLabel(alert.data);
 
   logger.info("Alert — RELEVANT", {
@@ -386,6 +491,7 @@ function startHealthServer(): void {
           uptime: process.uptime(),
           seen_alerts: seenAlerts.size,
           language: config.language,
+          gif_mode: config.gifMode,
           areas: config.areas,
         }),
       );
@@ -409,10 +515,32 @@ async function main(): Promise<void> {
     poll_interval_ms: config.pollIntervalMs,
     telegram: config.botToken ? "enabled" : "disabled",
     language: config.language,
+    gif_mode: config.gifMode,
     areas: config.areas,
   });
 
   await initTranslations();
+
+  // Resolve YAML city_ids → Hebrew area names for Oref API matching
+  if (config.cityIds.length > 0) {
+    config.areas = resolveCityIds(config.cityIds);
+    logger.info("Resolved city IDs to area names", {
+      city_ids: config.cityIds,
+      areas: config.areas,
+    });
+  } else if (process.env.AREAS) {
+    // Legacy fallback: AREAS env var (comma-separated Hebrew names)
+    config.areas = process.env.AREAS.split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    logger.info("Using legacy AREAS env var", { areas: config.areas });
+  }
+
+  if (config.areas.length === 0) {
+    logger.warn("No areas configured — bot will not filter alerts by area");
+  }
+
+  initGifState(config.dataDir);
   bot = initBot();
   startHealthServer();
 

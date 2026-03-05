@@ -5,10 +5,11 @@ services:
     build: .
     container_name: easyoref
     restart: unless-stopped
-    env_file:
-      - .env
     ports:
       - "3100:3100"
+    volumes:
+      - easyoref-data:/app/data
+      - ./config.yaml:/app/config.yaml:ro
     healthcheck:
       test:
         [
@@ -22,3 +23,6 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+volumes:
+  easyoref-data:

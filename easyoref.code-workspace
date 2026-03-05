@@ -126,13 +126,9 @@
         "type": "node",
         "request": "launch",
         "runtimeExecutable": "npx",
-        "runtimeArgs": ["tsx", "src/bot.ts"],
+        "runtimeArgs": ["tsx", "packages/bot/src/bot.ts"],
         "console": "integratedTerminal",
         "cwd": "${workspaceFolder}",
-        "env": {
-          "OLLAMA_URL": "http://localhost:11434",
-          "OLLAMA_MODEL": "gemma3:1b",
-        },
       },
     ],
   },
@@ -142,7 +138,7 @@
       {
         "label": "Dev: Watch",
         "type": "shell",
-        "command": "npx tsx watch src/bot.ts",
+        "command": "npx tsx watch packages/bot/src/bot.ts",
         "group": {
           "kind": "build",
           "isDefault": true,
@@ -181,11 +177,7 @@
         "type": "shell",
         "command": "ollama pull gemma3:1b",
       },
-      {
-        "label": "Deploy: RPi",
-        "type": "shell",
-        "command": "ansible-playbook -i inventory/hosts.ini playbooks/deploy-easyoref.yml",
-      },
+
       {
         "label": "Validate: docker-compose.yml",
         "type": "shell",

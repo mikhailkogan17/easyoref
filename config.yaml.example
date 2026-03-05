@@ -1,0 +1,57 @@
+# ─────────────────────────────────────────────────
+# EasyOref — Configuration
+# Copy this file to config.yaml and fill in your values.
+# ─────────────────────────────────────────────────
+
+# ── Monitoring ────────────────────────────────────
+# City IDs to monitor (from cities.json).
+# Find IDs: https://raw.githubusercontent.com/eladnava/pikud-haoref-api/master/cities.json
+# Example: 722 = תל אביב - דרום העיר ויפו
+city_ids:
+  - 722
+  # - 723  # Another area...
+
+# Which alert types to forward (omit = all three):
+#   early          — early warning (e.g. hostiles detected)
+#   siren          — red alert / rocket siren
+#   incident_over  — all-clear
+alert_types:
+  - early
+  - siren
+  - incident_over
+
+# ── Telegram ──────────────────────────────────────
+telegram:
+  bot_token: ""        # from @BotFather (or mount Docker secret)
+  chat_id: ""          # negative for groups, e.g. "-1001234567890"
+
+# ── Language & GIF ────────────────────────────────
+# ru | en | he | ar
+language: ru
+
+# funny_cats | assertive | pikud_haoref | none
+gif_mode: none
+
+# ── Overrides (optional) ─────────────────────────
+# Override the default title/description per alert type.
+# Leave commented out to use built-in i18n strings.
+#
+# title_override:
+#   siren: "🚀 ROCKET ALERT"
+#   early: "⚠️ Early warning"
+#   incident_over: "✅ All clear"
+#
+# description_override:
+#   siren: "Take cover immediately!"
+#   early: "Stay alert, follow instructions."
+#   incident_over: "You may leave the shelter."
+
+# ── Observability (optional) ─────────────────────
+# observability:
+#   betterstack_token: ""   # Logtail source token
+
+# ── Advanced ─────────────────────────────────────
+# poll_interval_ms: 2000
+# health_port: 3100
+# data_dir: ./data
+# oref_api_url: https://www.oref.org.il/WarningMessages/alert/alerts.json

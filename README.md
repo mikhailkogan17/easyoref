@@ -8,6 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-22+-339933?logo=node.js)](https://nodejs.org)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker)](Dockerfile)
+[![npm](https://img.shields.io/badge/npm-easyoref-red?logo=npm)](https://www.npmjs.com/package/easyoref)
 
 [English](#what-it-does) | [Русский](#что-делает)
 
@@ -18,12 +19,14 @@
 - Polls [Pikud HaOref API](https://www.oref.org.il/) every 2 seconds for active alerts
 - Filters by **your region** (e.g. Tel Aviv South, Gush Dan, Jerusalem)
 - Sends **calm, context-aware messages** to your family Telegram chat:
-  - 🚀 **Early warning** (5–12 min): "Rocket launches detected, I'm aware"
-  - 🚨 **Siren** (1.5 min): "I'm in shelter, all good"
-  - 😮‍💨 **Incident over**: "Back to normal"
-- Cooldown logic (no spam): 30 min for early warnings, 1.5 min for sirens
+  - 🚀 **Early warning** (5–12 min): "Stay near a protected space"
+  - 🚨 **Siren** (1.5 min): "Enter a protected space"
+  - 😮‍💨 **Incident over**: "You may leave the protected space"
+- Cooldown logic (no spam): 2 min for early warnings, 1.5 min for sirens
 - Night mode (03:00–11:00 Israel time): different GIFs to reduce panic
-- **3 languages**: Russian, English, Hebrew
+- **4 languages**: Russian, English, Hebrew, Arabic
+- **4 GIF modes**: `funny_cats`, `assertive`, `pikud_haoref`, `none`
+- Persistent GIF rotation — no repeats, survives redeploys
 
 ## Why it exists
 
@@ -52,8 +55,8 @@ Reduces panic. Seeing a cute cat = signal "everything is under control" (vs plai
 # 3. Clone and configure
 git clone https://github.com/mikhailkogan17/easyoref.git
 cd easyoref
-cp .env.example .env
-# Edit .env with your values
+cp config.yaml.example config.yaml
+# Edit config.yaml with your values
 
 # 4. Run
 docker compose up -d
@@ -64,13 +67,17 @@ curl localhost:3100/health
 
 **Done!** Bot is now monitoring Oref API and will message your chat on alerts.
 
-### `.env` example
+### `config.yaml` example
 
-```bash
-BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
-CHAT_ID=-1001234567890
-AREAS=תל אביב - דרום העיר ויפו,גוש דן
-LANGUAGE=ru
+```yaml
+city_ids:
+  - 722   # תל אביב - דרום העיר ויפו
+alert_types: [early, siren, incident_over]
+language: ru
+gif_mode: funny_cats
+telegram:
+  bot_token: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+  chat_id: "-1001234567890"
 ```
 
 ---
@@ -79,9 +86,16 @@ LANGUAGE=ru
 
 ```bash
 # Requirements: Node.js 22+
-npm ci
+npm install
 npm run build
 npm start
+```
+
+Or install globally from npm:
+
+```bash
+npm install -g easyoref
+easyoref  # reads config.yaml from current directory
 ```
 
 Or for development with hot-reload:
@@ -94,26 +108,39 @@ npm run dev
 
 ## Configuration
 
-### Required (via `.env` or environment variables)
+All settings live in `config.yaml` (see [config.yaml.example](config.yaml.example)).
 
-| Variable    | Description                            | Example                           |
-| ----------- | -------------------------------------- | --------------------------------- |
-| `BOT_TOKEN` | Telegram bot token from @BotFather     | `123456:ABC-DEF...`               |
-| `CHAT_ID`   | Telegram chat ID (negative for groups) | `-1001234567890`                  |
-| `AREAS`     | Comma-separated Hebrew area names      | `תל אביב - דרום העיר ויפו,גוש דן` |
+Config file search order: `EASYOREF_CONFIG` env → `./config.yaml` → `/app/config.yaml` → `/etc/easyoref/config.yaml`.
+
+### Required
+
+| Key                  | Description                            | Example             |
+| -------------------- | -------------------------------------- | ------------------- |
+| `telegram.bot_token` | Telegram bot token from @BotFather     | `123456:ABC-DEF...` |
+| `telegram.chat_id`   | Telegram chat ID (negative for groups) | `-1001234567890`    |
+| `city_ids`           | Numeric city IDs from cities.json      | `[722]`             |
 
 ### Optional
 
-| Variable                | Default | Description                                  |
-| ----------------------- | ------- | -------------------------------------------- |
-| `LANGUAGE`              | `ru`    | Message language: `ru` / `en` / `he`         |
-| `HEALTH_PORT`           | `3100`  | Health endpoint port                         |
-| `OREF_POLL_INTERVAL_MS` | `2000`  | API poll interval (ms)                       |
-| `LOGTAIL_TOKEN`         | —       | Better Stack Logtail token for cloud logging |
+| Key                               | Default   | Description                                                       |
+| --------------------------------- | --------- | ----------------------------------------------------------------- |
+| `alert_types`                     | all three | Which alerts to send: `early` / `siren` / `incident_over`         |
+| `language`                        | `ru`      | Message language: `ru` / `en` / `he` / `ar`                       |
+| `gif_mode`                        | `none`    | GIF style: `funny_cats` / `assertive` / `none`                    |
+| `title_override.<type>`           | —         | Custom title per alert type                                       |
+| `description_override.<type>`     | —         | Custom description per alert type                                 |
+| `observability.betterstack_token` | —         | Better Stack token — see [docs/MONITORING.md](docs/MONITORING.md) |
+| `health_port`                     | `3100`    | Health endpoint port                                              |
+| `poll_interval_ms`                | `2000`    | API poll interval (ms)                                            |
+| `data_dir`                        | `./data`  | Directory for persistent GIF rotation state                       |
 
-### Finding your area name
+### Finding your city ID
 
-Area names must be in Hebrew exactly as Oref API returns them. See [areas.json](areas.json) for common areas with English translations.
+City IDs are numeric identifiers from [cities.json](https://raw.githubusercontent.com/eladnava/pikud-haoref-api/master/cities.json). Search for your city name and use the `id` field. Or run `npx @easyoref/cli list-areas`.
+
+### Legacy: environment variables
+
+For backward compatibility, `BOT_TOKEN`, `CHAT_ID`, `AREAS` (comma-separated Hebrew names), and other env vars are still supported as fallbacks when YAML keys are not set.
 
 ---
 
@@ -121,16 +148,19 @@ Area names must be in Hebrew exactly as Oref API returns them. See [areas.json](
 
 ```
 Oref API (2-sec poll)
-  → Area filter (Hebrew names from AREAS env)
+  → Area filter (city IDs → Hebrew names via cities.json)
     → Alert type classifier (early_warning / siren / resolved)
-      → Cooldown logic (30 min / 1.5 min)
-        → Telegram (grammY + GIF rotation)
+      → Alert type filter (config.alert_types)
+        → Cooldown logic (2 min / 1.5 min / 5 min)
+          → i18n (ru/en/he/ar, auto-translated area names)
+            → Telegram (grammY + GIF rotation, persistent state)
 ```
 
 **No LLM needed** — purely deterministic matching for <1s latency.
 
 **Production-grade:**
 - Docker secrets support (`/run/secrets/bot_token`)
+- Named volume for persistent GIF state (`easyoref-data`)
 - Health endpoint (`/health`)
 - Graceful shutdown (SIGTERM)
 - Structured logging (Logtail-compatible)
@@ -140,11 +170,15 @@ Oref API (2-sec poll)
 ### Project structure
 
 ```
-src/
-  bot.ts      — main polling loop, Telegram integration, GIF pools
-  config.ts   — centralized configuration from env vars
-  i18n.ts     — message templates (ru/en/he)
-  logger.ts   — dual console + Logtail logger
+packages/
+  bot/          — the Telegram bot (published to npm as `easyoref`)
+    src/
+      bot.ts      — main polling loop, Telegram integration, GIF pools
+      config.ts   — centralized configuration (YAML + env fallback)
+      i18n.ts     — message templates (ru/en/he/ar) + area translation
+      gif-state.ts — persistent GIF rotation (JSON file)
+      logger.ts   — dual console + Logtail logger
+  cli/          — interactive setup wizard (`npx @easyoref/cli init`)
 ```
 
 ---
@@ -158,10 +192,13 @@ A: RedAlert is for *you* (in Israel). EasyOref is for *your family abroad* who d
 A: Built for diaspora parents in Russia/Ukraine/etc. Set `LANGUAGE=en` or `LANGUAGE=he` to change.
 
 **Q: Can I monitor multiple areas?**
-A: Yes — comma-separate them in `AREAS`: `AREAS=ירושלים,חיפה - מערב,אשדוד - א,ב,ד,ה`
+A: Yes — add multiple city IDs: `city_ids: [722, 723, 1]`
 
 **Q: Can I use it for other countries?**
 A: Not out of the box (hardcoded to Oref API), but the architecture is reusable — fork and adapt the polling logic.
+
+**Q: Will GIF rotation reset on redeploy?**
+A: No — state is persisted in `DATA_DIR` (mapped to a Docker named volume). Safe across updates.
 
 ---
 
@@ -171,10 +208,9 @@ PRs welcome! Ideas:
 
 - [ ] More complete areas list
 - [ ] `/test` command for manual trigger
-- [ ] Custom GIF pools via env vars
 - [ ] Prometheus metrics (`/metrics`)
 - [ ] Web dashboard (recent alerts history)
-- [ ] CLI wizard (`npx @easyoref/cli init`)
+- [ ] `pikud_haoref` GIF mode (official Oref visuals)
 
 ---
 
@@ -185,11 +221,13 @@ PRs welcome! Ideas:
 - Каждые 2 секунды проверяет [API Пикуд ха-Ореф](https://www.oref.org.il/)
 - Фильтрует по вашему региону (например, Тель-Авив юг, Гуш Дан)
 - Отправляет **спокойные сообщения** в семейный чат Telegram:
-  - 🚀 **Раннее предупреждение** (5–12 мин): "Зафиксированы запуски ракет, я в курсе"
-  - 🚨 **Сирена** (1.5 мин): "Я в укрытии, всё под контролем"
-  - 😮‍💨 **Инцидент завершён**: "Больше не нужно быть в укрытии"
-- Cooldown (без спама): 30 мин для предупреждений, 1.5 мин для сирен
+  - 🚀 **Раннее предупреждение** (5–12 мин): "Находитесь рядом с защищённым помещением"
+  - 🚨 **Сирена** (1.5 мин): "Войдите в защищённое помещение"
+  - 😮‍💨 **Инцидент завершён**: "Можно покинуть защищённое помещение"
+- Cooldown (без спама): 2 мин для предупреждений, 1.5 мин для сирен
 - Ночной режим (03:00–11:00): другие GIF'ки
+- **4 языка**: русский, английский, иврит, арабский
+- Persistent GIF-ротация — не повторяется, переживает редеплой
 
 ### Зачем это нужно
 
@@ -210,8 +248,8 @@ PRs welcome! Ideas:
 # 3. Клонируйте и настройте
 git clone https://github.com/mikhailkogan17/easyoref.git
 cd easyoref
-cp .env.example .env
-# Отредактируйте .env — укажите свои значения
+cp config.yaml.example config.yaml
+# Отредактируйте config.yaml — укажите свои значения
 
 # 4. Запустите
 docker compose up -d
@@ -220,13 +258,34 @@ docker compose up -d
 curl localhost:3100/health
 ```
 
-### Настройка `.env`
+### Настройка `config.yaml`
 
-```bash
-BOT_TOKEN=ваш_токен_от_botfather
-CHAT_ID=-1001234567890
-AREAS=תל אביב - דרום העיר ויפו,גוש דן
-LANGUAGE=ru
+```yaml
+city_ids:
+  - 722   # תל אביב - דרום העיר ויפו
+alert_types: [early, siren, incident_over]
+language: ru
+gif_mode: funny_cats
+telegram:
+  bot_token: "ваш_токен_от_botfather"
+  chat_id: "-1001234567890"
+```
+
+Полный список районов с переводами: [areas.json](areas.json)
+
+# 5. Проверьте
+curl localhost:3100/health
+```
+
+### Настройка `config.yaml`
+
+```yaml
+city_ids:
+  - 722   # תל אביב - דרום העיר ויפו
+language: ru
+telegram:
+  bot_token: "ваш_токен_от_botfather"
+  chat_id: "-1001234567890"
 ```
 
 Полный список районов с переводами: [areas.json](areas.json)
