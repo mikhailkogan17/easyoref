@@ -1,0 +1,70 @@
+Script started on Tue Mar  3 23:11:00 2026
+/Applications/Visual Studio Code.app/Contents/Resources/app/out/vs/workbench/contrib/terminal/common/scripts/shellIntegration-bash.sh:read:22: bad option: -a
+/Applications/Visual Studio Code.app/Contents/Resources/app/out/vs/workbench/contrib/terminal/common/scripts/shellIntegration-bash.sh:31: = not found
+[1m[7m%[27m[1m[0m                                                                               EasyOrefEasyOrefEasyOrefEasyOrefEasyOref
+ EasyOrefEasyOrefEasyOrefEasyOref
+]2;mikhailkogan@MacBookPro:~/EasyOref]1;~/EasyOref]7;file://MacBookPro/Users/mikhailkogan/EasyOref\
+[0m[27m[24m[J[01;31m➜  [36mEasyOref[00m [K[?1h=[?2004h
+
+[0EasyOref24m[J[01;31m➜  [36mEasyOref[00m [01;34mgit:([31mmain[34m) [33m✗[00m [K[?2004l
+
+[1m[7m%[27m[1m[0m
+
+]2;mikhailkogan@MacBookPro:~/EasyOref]1;~/EasyOref]7;file://MacBookPro/Users/mikhailkogan/EasyOref\
+[0EasyOref24m[J[01;31m➜  [36mEasyOref[00m [01;34mgit:([31mmain[34m) [33m✗[00m [K[?1h=[?2004h  curl -s http://localhost:3100/health && echo "" && gre
+[Kp
+p -A2 "Logtail\|starting" /tmp/easyoref.log | tail -10[?1l>[?2004l
+EasyOrefEasyOrefEasyOrefEasyOref
+]2;curl -s http://localhost:3100/health && echo "" && grep --color=auto  -A2   |]1;curl{"status":"ok","service":"easyoref","uptimeEasyOref594792,EasyOreferts":0}EasyOrefEasyOref
+--
+📡 Better Stack Logtail enabled — live tail at logs.betterstack.com
+🚀 EasyOref starting... {
+  ollama_url: 'http://localhost:11434',
+  ollama_model: 'gemma3:1b',
+--EasyOrefEasyOrefEasyOrefEasyOref
+📡 Better Stack Logtail enabled — live tail at logs.betterstack.comEasyOrefEasyOrefEasyOrefEasyOref
+🚀 EasyOref starting... {
+  ollama_url: 'http://localhost:11434',EasyOrefEasyOrefEasyOrefEasyOref
+  ollama_model: 'gemma3:1b',
+[1m[7m%[27m[1m[0m
+
+]2;mikhailkogan@MacBookPro:~/EasyOref]1;~/EasyOref]7;file://MacBookPro/Users/mikhailkogan/EasyOref\
+[0m[27m[24m[J[01;32m➜  [36mEasyOref[00m [01;34mgit:([31mmain[34m) [33m✗[00m [K[?1h=[?2004h[?2004l
+
+[1m[7m%[27m[1m[0m
+
+]2;mikhailkogan@MacBookPro:~/EasyOref]1;~/EasyOref]7;file://MacBookPro/Users/mikhailkogan/EasyOref\
+[0m[27m[24m[J[01;31m➜  [36mEasyOref[00m [01;34mgit:([31mmain[34m) [33m✗[00m [K[?1h=[?2004h  curl -s -X POST https://in.logs.betterstack.com \[?1l>[?2004l
+
+
+[0m[27m[24m[J> [K[?1h=[?2004h   -H "Content-Type: application/json" \[?1l>[?2004l
+
+
+[0m[27m[24m[J> [K[?1h=[?2004h   -H "Authorization: Bearer v1X5jpLDV6M2czdMVtHWAPXY" \[?1l>[?2004l
+
+
+[0m[27m[24m[J> [K[?1h=[?2004h   -d '{"message":"test from curl","service":"easyoref"}' \[?1l>[?2004l
+
+
+[0m[27m[24m[J> [K[?1h=[?2004h   -w "\nHTTP %{http_code}"[?1l>[?2004l
+
+]2;curl -s -X POST https://in.logs.betterstack.com -H  -H  -d  -w ]1;curl
+HTTP 202[1m[7m%[27m[1m[0m
+
+]2;mikhailkogan@MacBookPro:~/EasyOref]1;~/EasyOref]7;file://MacBookPro/Users/mikhailkogan/EasyOref\
+[0m[27m[24m[J[01;32m➜  [36mEasyOref[00m [01;34mgit:([31mmain[34m) [33m✗[00m [K[?1h=[?2004h[?2004l
+
+[1m[7m%[27m[1m[0m
+
+]2;mikhailkogan@MacBookPro:~/EasyOref]1;~/EasyOref]7;file://MacBookPro/Users/mikhailkogan/EasyOref\
+[0m[27m[24m[J[01;31m➜  [36mEasyOref[00m [01;34mgit:([31mmain[34m) [33m✗[00m [K[?1h=[?2004h  ps aux | grep 'tsx.*bot' | grep -v grep | awk '{print
+[K$
+$2}' | head -1 | xargs -I{} sh -c 'ps eww {} 2>/dev/null | tr " " "\n" | grep LO
+[KG
+GTAIL'[?1l>[?2004l
+
+]2;ps aux | grep --color=auto  'tsx.*bot' | grep --color=auto  -v grep | awk  | ]1;psLOGTAIL_TOKEN=v1X5jpLDV6M2czdMVtHWAPXY
+[1m[7m%[27m[1m[0m
+
+]2;mikhailkogan@MacBookPro:~/EasyOref]1;~/EasyOref]7;file://MacBookPro/Users/mikhailkogan/EasyOref\
+[0m[27m[24m[J[01;32m➜  [36mEasyOref[00m [01;34mgit:([31mmain[34m) [33m✗[00m [K[?1h=[?2004h

@@ -1,0 +1,37 @@
+{
+  "name": "@easyoref/cli",
+  "version": "1.0.0",
+  "description": "Interactive setup wizard for EasyOref",
+  "type": "module",
+  "bin": {
+    "easyoref": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "easyoref",
+    "oref",
+    "telegram",
+    "cli",
+    "setup-wizard"
+  ],
+  "author": "Mikhail Kogan <kogan.mikhail@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@inquirer/prompts": "^7.0.0",
+    "chalk": "^5.3.0",
+    "grammy": "^1.35.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
