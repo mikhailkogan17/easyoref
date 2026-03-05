@@ -60,10 +60,10 @@ Example: `"id": 722` = Tel Aviv — South & Jaffa.
 On an always-on machine (Mac / Linux / RPi):
 
 ```bash
-npm install -g easyoref
+npx easyoref
 ```
 
-Create `config.yaml` in any directory:
+First run creates `config.yaml` — edit it:
 
 ```yaml
 city_ids:
@@ -76,10 +76,10 @@ telegram:
   chat_id: "-1001234567890"
 ```
 
-Run:
+Run again:
 
 ```bash
-easyoref
+npx easyoref
 ```
 
 Or via Docker:

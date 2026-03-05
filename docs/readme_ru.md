@@ -55,10 +55,10 @@
 На постоянно включённом компьютере (Mac / Linux / RPi):
 
 ```bash
-npm install -g easyoref
+npx easyoref
 ```
 
-Создайте `config.yaml` в любой папке:
+При первом запуске создастся `config.yaml` — отредактируйте:
 
 ```yaml
 city_ids:
@@ -71,10 +71,10 @@ telegram:
   chat_id: "-1001234567890"
 ```
 
-Запустите:
+Запустите снова:
 
 ```bash
-easyoref
+npx easyoref
 ```
 
 Или через Docker:

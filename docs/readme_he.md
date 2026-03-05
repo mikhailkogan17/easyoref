@@ -55,10 +55,10 @@
 על מכונה שעובדת כל הזמן (Mac / Linux / RPi):
 
 ```bash
-npm install -g easyoref
+npx easyoref
 ```
 
-צרו `config.yaml` בתיקייה כלשהי:
+בהרצה הראשונה נוצר `config.yaml` — ערכו אותו:
 
 ```yaml
 city_ids:
@@ -71,10 +71,10 @@ telegram:
   chat_id: "-1001234567890"
 ```
 
-הריצו:
+הריצו שוב:
 
 ```bash
-easyoref
+npx easyoref
 ```
 
 או דרך Docker:
@@ -103,14 +103,14 @@ docker compose up -d
 
 ### אופציונלי
 
-| מפתח                              | ברירת מחדל | תיאור                                        |
-| --------------------------------- | ---------- | -------------------------------------------- |
-| `language`                        | `ru`       | שפה: `ru` `en` `he` `ar`                     |
-| `alert_types`                     | הכל        | סוגי אזעקה: `early` `siren` `incident_over`  |
-| `gif_mode`                        | `none`     | GIF: `funny_cats` `assertive` `none`         |
-| `title_override.*`                | —          | כותרת מותאמת לכל סוג אזעקה                   |
-| `description_override.*`          | —          | תיאור מותאם לכל סוג אזעקה                    |
-| `observability.betterstack_token` | —          | לוגים דרך [Better Stack](MONITORING.md)      |
+| מפתח                              | ברירת מחדל | תיאור                                       |
+| --------------------------------- | ---------- | ------------------------------------------- |
+| `language`                        | `ru`       | שפה: `ru` `en` `he` `ar`                    |
+| `alert_types`                     | הכל        | סוגי אזעקה: `early` `siren` `incident_over` |
+| `gif_mode`                        | `none`     | GIF: `funny_cats` `assertive` `none`        |
+| `title_override.*`                | —          | כותרת מותאמת לכל סוג אזעקה                  |
+| `description_override.*`          | —          | תיאור מותאם לכל סוג אזעקה                   |
+| `observability.betterstack_token` | —          | לוגים דרך [Better Stack](MONITORING.md)     |
 
 ---
 
