@@ -9,7 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # OIDC: GitHub generates id-token, npm verifies it for authentication
       id-token: write
 
     steps:
@@ -24,6 +23,8 @@ jobs:
 
       - run: npm run build --workspace=packages/bot
 
-      # npm automatically uses OIDC token from GitHub Actions
-      # No NPM_TOKEN needed — provenance attestation signed by Sigstore
+      # --provenance attaches Sigstore OIDC attestation (requires id-token: write)
+      # NPM_TOKEN is still required for authentication
       - run: npm publish --workspace=packages/bot --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
