@@ -58,16 +58,14 @@
 npx easyoref
 ```
 
-При первом запуске создастся `config.yaml` — отредактируйте:
+При первом запуске создастся `config.yaml`. Замените 3 значения:
 
 ```yaml
 city_ids:
-  - 722          # ID вашего города
-
-language: ru     # ru / en / he / ar
-
+  - 722
+language: ru
 telegram:
-  bot_token: "вставьте-токен"
+  bot_token: "ваш-токен"
   chat_id: "-1001234567890"
 ```
 
@@ -77,7 +75,10 @@ telegram:
 npx easyoref
 ```
 
-Или через Docker:
+**Готово.** Бот отправит сообщения в чат при получении оповещений от Службы Тыла.
+
+<details>
+<summary>Docker</summary>
 
 ```bash
 git clone https://github.com/mikhailkogan17/easyoref.git && cd easyoref
@@ -85,35 +86,28 @@ cp config.yaml.example config.yaml   # отредактируйте
 docker compose up -d
 ```
 
-**Готово.** Бот отправит сообщения в чат при получении оповещений от Службы Тыла.
+</details>
 
 ---
 
 ## Конфигурация
 
-Все настройки — в `config.yaml`.
+Все настройки — в [`config.yaml.example`](../config.yaml.example). Скопируйте, переименуйте в `config.yaml`, раскомментируйте нужное.
 
-### Обязательные
-
-| Ключ                 | Описание                                                                                                            |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `city_ids`           | Города для мониторинга ([найти ID](https://raw.githubusercontent.com/eladnava/pikud-haoref-api/master/cities.json)) |
-| `telegram.bot_token` | Токен от @BotFather                                                                                                 |
-| `telegram.chat_id`   | ID чата (отрицательное число)                                                                                       |
-
-### Опциональные
-
-| Ключ                              | По умолчанию | Описание                                        |
-| --------------------------------- | ------------ | ----------------------------------------------- |
-| `language`                        | `ru`         | Язык: `ru` `en` `he` `ar`                       |
-| `alert_types`                     | все          | Типы тревог: `early` `siren` `incident_over`    |
-| `gif_mode`                        | `none`       | GIF: `funny_cats` `assertive` `none`            |
-| `title_override.*`                | —            | Свой заголовок по типу тревоги                  |
-| `description_override.*`          | —            | Своё описание по типу тревоги                   |
-| `observability.betterstack_token` | —            | Логирование через [Better Stack](MONITORING.md) |
+| Ключ | По умолчанию | Описание |
+| --- | --- | --- |
+| `city_ids` | — | **обязательно.** [Найти ID города](https://raw.githubusercontent.com/eladnava/pikud-haoref-api/master/cities.json) |
+| `telegram.bot_token` | — | **обязательно.** Токен от @BotFather |
+| `telegram.chat_id` | — | **обязательно.** ID чата (отрицательное число) |
+| `language` | `ru` | `ru` `en` `he` `ar` |
+| `alert_types` | все | `early` `siren` `incident_over` |
+| `gif_mode` | `none` | `funny_cats` `assertive` `none` |
+| `title_override.*` | — | Свой заголовок по типу тревоги |
+| `description_override.*` | — | Своё описание по типу тревоги |
+| `observability.betterstack_token` | — | [Better Stack](MONITORING.md) логирование |
 
 ---
 
 ## Лицензия
 
-[MIT](../LICENSE) — Михаил Коган, 2025–2026
+[MIT](../LICENSE) — Михаил Коган, 2026

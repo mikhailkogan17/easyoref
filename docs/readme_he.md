@@ -58,16 +58,14 @@
 npx easyoref
 ```
 
-בהרצה הראשונה נוצר `config.yaml` — ערכו אותו:
+בהרצה הראשונה נוצר `config.yaml`. החליפו 3 ערכים:
 
 ```yaml
 city_ids:
-  - 722          # ID של העיר שלכם
-
-language: he     # ru / en / he / ar
-
+  - 722
+language: he
 telegram:
-  bot_token: "הדביקו-טוקן-כאן"
+  bot_token: "הטוקן-שלכם"
   chat_id: "-1001234567890"
 ```
 
@@ -77,7 +75,10 @@ telegram:
 npx easyoref
 ```
 
-או דרך Docker:
+**זהו.** הבוט ישלח הודעות לצ׳אט בכל התרעה של פיקוד העורף באזור שלכם.
+
+<details>
+<summary>Docker</summary>
 
 ```bash
 git clone https://github.com/mikhailkogan17/easyoref.git && cd easyoref
@@ -85,35 +86,28 @@ cp config.yaml.example config.yaml   # ערכו
 docker compose up -d
 ```
 
-**זהו.** הבוט ישלח הודעות לצ׳אט בכל התרעה של פיקוד העורף באזור שלכם.
+</details>
 
 ---
 
 ## הגדרות
 
-כל ההגדרות ב-`config.yaml`.
+כל ההגדרות ב-[`config.yaml.example`](../config.yaml.example). העתיקו ל-`config.yaml`, הסירו comment ממה שצריך.
 
-### חובה
-
-| מפתח                 | תיאור                                                                                                   |
-| -------------------- | ------------------------------------------------------------------------------------------------------- |
-| `city_ids`           | ערים לניטור ([מצאו ID](https://raw.githubusercontent.com/eladnava/pikud-haoref-api/master/cities.json)) |
-| `telegram.bot_token` | טוקן מ-@BotFather                                                                                       |
-| `telegram.chat_id`   | ID של הצ׳אט (מספר שלילי)                                                                                |
-
-### אופציונלי
-
-| מפתח                              | ברירת מחדל | תיאור                                       |
-| --------------------------------- | ---------- | ------------------------------------------- |
-| `language`                        | `ru`       | שפה: `ru` `en` `he` `ar`                    |
-| `alert_types`                     | הכל        | סוגי אזעקה: `early` `siren` `incident_over` |
-| `gif_mode`                        | `none`     | GIF: `funny_cats` `assertive` `none`        |
-| `title_override.*`                | —          | כותרת מותאמת לכל סוג אזעקה                  |
-| `description_override.*`          | —          | תיאור מותאם לכל סוג אזעקה                   |
-| `observability.betterstack_token` | —          | לוגים דרך [Better Stack](MONITORING.md)     |
+| מפתח | ברירת מחדל | תיאור |
+| --- | --- | --- |
+| `city_ids` | — | **חובה.** [מצאו ID עיר](https://raw.githubusercontent.com/eladnava/pikud-haoref-api/master/cities.json) |
+| `telegram.bot_token` | — | **חובה.** טוקן מ-@BotFather |
+| `telegram.chat_id` | — | **חובה.** ID של הצ׳אט (מספר שלילי) |
+| `language` | `ru` | `ru` `en` `he` `ar` |
+| `alert_types` | הכל | `early` `siren` `incident_over` |
+| `gif_mode` | `none` | `funny_cats` `assertive` `none` |
+| `title_override.*` | — | כותרת מותאמת לכל סוג אזעקה |
+| `description_override.*` | — | תיאור מותאם לכל סוג אזעקה |
+| `observability.betterstack_token` | — | לוגים דרך [Better Stack](MONITORING.md) |
 
 ---
 
 ## רישיון
 
-[MIT](../LICENSE) — מיכאיל קוגן, 2025–2026
+[MIT](../LICENSE) — מיכאל קוגן, 2026

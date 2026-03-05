@@ -12,7 +12,7 @@ Israeli civil defense alerts → your family's Telegram chat.
 > [!CAUTION]
 > EasyOref **does not replace** official Home Front Command alerts.
 > It **supplements** them — notifying your family abroad.
-> Always follow IDF Home Front Command instructions!
+> Always follow Home Front Command instructions!
 
 ---
 
@@ -63,16 +63,14 @@ On an always-on machine (Mac / Linux / RPi):
 npx easyoref
 ```
 
-First run creates `config.yaml` — edit it:
+First run creates `config.yaml`. Replace 3 values:
 
 ```yaml
 city_ids:
-  - 722          # your city ID
-
-language: ru     # ru / en / he / ar
-
+  - 722
+language: ru
 telegram:
-  bot_token: "paste-token-here"
+  bot_token: "your-token"
   chat_id: "-1001234567890"
 ```
 
@@ -82,7 +80,10 @@ Run again:
 npx easyoref
 ```
 
-Or via Docker:
+**Done.** The bot will message your chat whenever the Home Front Command issues an alert for your area.
+
+<details>
+<summary>Docker</summary>
 
 ```bash
 git clone https://github.com/mikhailkogan17/easyoref.git && cd easyoref
@@ -90,35 +91,28 @@ cp config.yaml.example config.yaml   # edit it
 docker compose up -d
 ```
 
-**Done.** The bot will message your chat whenever the Home Front Command issues an alert for your area.
+</details>
 
 ---
 
 ## Configuration
 
-All settings live in `config.yaml`.
+All settings live in [`config.yaml.example`](config.yaml.example). Copy it to `config.yaml`, uncomment what you need.
 
-### Required
-
-| Key                  | What it is                                                                                                          |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `city_ids`           | Cities to monitor ([find IDs here](https://raw.githubusercontent.com/eladnava/pikud-haoref-api/master/cities.json)) |
-| `telegram.bot_token` | Token from @BotFather                                                                                               |
-| `telegram.chat_id`   | Your group chat ID (negative number)                                                                                |
-
-### Optional
-
-| Key                               | Default | What it does                                             |
-| --------------------------------- | ------- | -------------------------------------------------------- |
-| `language`                        | `ru`    | Message language: `ru` `en` `he` `ar`                    |
-| `alert_types`                     | all     | Which alerts to forward: `early` `siren` `incident_over` |
-| `gif_mode`                        | `none`  | Attach GIF to messages: `funny_cats` `assertive` `none`  |
-| `title_override.*`                | —       | Custom title per alert type                              |
-| `description_override.*`          | —       | Custom description per alert type                        |
-| `observability.betterstack_token` | —       | [Better Stack](docs/MONITORING.md) logging               |
+| Key | Default | Description |
+| --- | --- | --- |
+| `city_ids` | — | **required.** [Find city IDs](https://raw.githubusercontent.com/eladnava/pikud-haoref-api/master/cities.json) |
+| `telegram.bot_token` | — | **required.** Token from @BotFather |
+| `telegram.chat_id` | — | **required.** Chat ID (negative number) |
+| `language` | `ru` | `ru` `en` `he` `ar` |
+| `alert_types` | all | `early` `siren` `incident_over` |
+| `gif_mode` | `none` | `funny_cats` `assertive` `none` |
+| `title_override.*` | — | Custom title per alert type |
+| `description_override.*` | — | Custom description per alert type |
+| `observability.betterstack_token` | — | [Better Stack](docs/MONITORING.md) logging |
 
 ---
 
 ## License
 
-[MIT](LICENSE) — Mikhail Kogan, 2025–2026
+[MIT](LICENSE) — Mikhail Kogan, 2026
