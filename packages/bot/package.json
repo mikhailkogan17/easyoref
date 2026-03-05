@@ -31,7 +31,9 @@
     "directory": "packages/bot"
   },
   "dependencies": {
+    "@inquirer/prompts": "^7.0.0",
     "@logtail/node": "^0.5.6",
+    "chalk": "^5.3.0",
     "grammy": "^1.35.0",
     "js-yaml": "^4.1.1"
   },

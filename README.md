@@ -5,7 +5,6 @@ Israeli civil defense alerts → your family's Telegram chat.
 [![CI](https://github.com/mikhailkogan17/EasyOref/actions/workflows/ci.yml/badge.svg)](https://github.com/mikhailkogan17/EasyOref/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![npm](https://img.shields.io/badge/npm-easyoref-CB3837?logo=npm)](https://www.npmjs.com/package/easyoref)
-[![Docker](https://img.shields.io/badge/ghcr.io-easyoref-2496ED?logo=docker)](https://ghcr.io/mikhailkogan17/easyoref)
 
 [Русский](docs/readme_ru.md) · [עברית](docs/readme_he.md)
 
@@ -39,42 +38,59 @@ Cell Broadcast alerts — for you in Israel.
 
 ---
 
-## Quick Start
+## Install
 
-**You need:** Node.js 22+, Docker, an always-on machine ([RPi](docs/rpi.md), server, or [local](docs/local.md)).
+### 1. Install Node.js
 
-### Step 1: Telegram bot
+<details>
+<summary>Windows</summary>
 
-1. Message [@BotFather](https://t.me/BotFather) → `/newbot` → copy the token
+Download the installer from [nodejs.org](https://nodejs.org/) (LTS, 22+). Run it, click "Next".
+
+</details>
+
+<details>
+<summary>macOS</summary>
+
+```bash
+brew install node
+```
+
+Or download from [nodejs.org](https://nodejs.org/).
+
+</details>
+
+<details>
+<summary>Linux / Raspberry Pi</summary>
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
+</details>
+
+### 2. Set up Telegram
+
+1. Message [@BotFather](https://t.me/BotFather) → `/newbot` → copy the **token**
 2. Add the bot to your family group chat
-3. Forward any message from that chat to [@userinfobot](https://t.me/userinfobot) → copy the chat ID
+3. Forward any message from that chat to [@userinfobot](https://t.me/userinfobot) → copy the **chat ID**
 
-### Step 2: Find your city ID
+### 3. Find your city ID
 
-Open [cities.json](https://raw.githubusercontent.com/eladnava/pikud-haoref-api/master/cities.json), find your city, copy the `id` number.
+Open [cities.json](https://github.com/eladnava/pikud-haoref-api/blob/master/cities.json), find your city, copy the `id` number.
 
 Example: `"id": 722` = Tel Aviv — South & Jaffa.
 
-### Step 3: Deploy
-
-On an always-on machine (Mac / Linux / RPi):
+### 4. Run setup
 
 ```bash
-npx easyoref
+npx easyoref init
 ```
 
-First run creates `config.yaml`. Replace 3 values:
+The wizard asks for language, token, chat ID, and city ID. Config is saved to `~/.easyoref/config.yaml`.
 
-```yaml
-city_ids:
-  - 722
-language: ru
-telegram:
-  bot_token: "your-token"
-  chat_id: "-1001234567890"
-```
-
-Run again:
+### 5. Start the bot
 
 ```bash
 npx easyoref
@@ -82,26 +98,20 @@ npx easyoref
 
 **Done.** The bot will message your chat whenever the Home Front Command issues an alert for your area.
 
-<details>
-<summary>Docker</summary>
-
-```bash
-git clone https://github.com/mikhailkogan17/easyoref.git && cd easyoref
-cp config.yaml.example config.yaml   # edit it
-docker compose up -d
-```
-
-</details>
+> The bot needs to run 24/7 — on a Raspberry Pi, server, or always-on computer.
+> Guides: [RPi](docs/rpi.md) · [Local](docs/local.md)
 
 ---
 
 ## Configuration
 
-All settings live in [`config.yaml.example`](config.yaml.example). Copy it to `config.yaml`, uncomment what you need.
+Config file: `~/.easyoref/config.yaml`. Created by `npx easyoref init`.
+
+Full reference: [`config.yaml.example`](config.yaml.example).
 
 | Key | Default | Description |
 | --- | --- | --- |
-| `city_ids` | — | **required.** [Find city IDs](https://raw.githubusercontent.com/eladnava/pikud-haoref-api/master/cities.json) |
+| `city_ids` | — | **required.** [Find city IDs](https://github.com/eladnava/pikud-haoref-api/blob/master/cities.json) |
 | `telegram.bot_token` | — | **required.** Token from @BotFather |
 | `telegram.chat_id` | — | **required.** Chat ID (negative number) |
 | `language` | `ru` | `ru` `en` `he` `ar` |
@@ -109,7 +119,6 @@ All settings live in [`config.yaml.example`](config.yaml.example). Copy it to `c
 | `gif_mode` | `none` | `funny_cats` `assertive` `none` |
 | `title_override.*` | — | Custom title per alert type |
 | `description_override.*` | — | Custom description per alert type |
-| `observability.betterstack_token` | — | [Better Stack](docs/MONITORING.md) logging |
 
 ---
 

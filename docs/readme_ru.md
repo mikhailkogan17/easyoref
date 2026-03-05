@@ -1,6 +1,6 @@
 # EasyOref
 
-Оповещения о ракетных атаках в Израиле → в вашем чате в Telegram.
+Оповещения о ракетных атаках в Израиле — в вашем чате в Telegram.
 
 [English](../README.md) · [עברית](readme_he.md)
 
@@ -34,42 +34,59 @@
 
 ---
 
-## Быстрый старт
+## Установка
 
-**Нужно:** Node.js 22+, Docker, постоянно работающая машина ([RPi](rpi.md), [сервер](../README.md), или [локально](local.md)).
+### 1. Установите Node.js
 
-### Шаг 1: Бот в Telegram
+<details>
+<summary>Windows</summary>
 
-1. Напишите [@BotFather](https://t.me/BotFather) → `/newbot` → скопируйте токен
-2. Добавьте бота в семейный групповой чат
-3. Перешлите любое сообщение из чата в [@userinfobot](https://t.me/userinfobot) → скопируйте chat ID
+Скачайте установщик с [nodejs.org](https://nodejs.org/) (LTS, 22+). Запустите, нажимайте «Next».
 
-### Шаг 2: Найдите ID города
+</details>
 
-Откройте [cities.json](https://raw.githubusercontent.com/eladnava/pikud-haoref-api/master/cities.json) и найдите свой город. Скопируйте число из поля `id`.
+<details>
+<summary>macOS</summary>
+
+```bash
+brew install node
+```
+
+Или скачайте с [nodejs.org](https://nodejs.org/).
+
+</details>
+
+<details>
+<summary>Linux / Raspberry Pi</summary>
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
+</details>
+
+### 2. Подготовьте Telegram
+
+1. Напишите [@BotFather](https://t.me/BotFather) → `/newbot` → скопируйте **токен**
+2. Добавьте бота в семейный чат
+3. Перешлите любое сообщение из чата в [@userinfobot](https://t.me/userinfobot) → скопируйте **chat ID**
+
+### 3. Найдите ID вашего города
+
+Откройте [cities.json](https://github.com/eladnava/pikud-haoref-api/blob/master/cities.json), найдите свой город, скопируйте число из `id`.
 
 Пример: `"id": 722` = Тель-Авив — Юг и Яффо.
 
-### Шаг 3: Запуск
-
-На постоянно включённом компьютере (Mac / Linux / RPi):
+### 4. Запустите визард
 
 ```bash
-npx easyoref
+npx easyoref init
 ```
 
-При первом запуске создастся `config.yaml`. Замените 3 значения:
+Визард спросит язык, токен, chat ID и ID города. Конфиг сохранится в `~/.easyoref/config.yaml`.
 
-```yaml
-city_ids:
-  - 722
-language: ru
-telegram:
-  bot_token: "ваш-токен"
-  chat_id: "-1001234567890"
-```
-
-Запустите снова:
+### 5. Запустите бота
 
 ```bash
 npx easyoref
@@ -77,26 +94,20 @@ npx easyoref
 
 **Готово.** Бот отправит сообщения в чат при получении оповещений от Службы Тыла.
 
-<details>
-<summary>Docker</summary>
-
-```bash
-git clone https://github.com/mikhailkogan17/easyoref.git && cd easyoref
-cp config.yaml.example config.yaml   # отредактируйте
-docker compose up -d
-```
-
-</details>
+> Бот должен работать постоянно — на RPi, сервере, или компьютере который не выключается.
+> Подробнее: [RPi](rpi.md) · [Локально](local.md)
 
 ---
 
 ## Конфигурация
 
-Все настройки — в [`config.yaml.example`](../config.yaml.example). Скопируйте, переименуйте в `config.yaml`, раскомментируйте нужное.
+Конфиг: `~/.easyoref/config.yaml`. Создаётся командой `npx easyoref init`.
+
+Полный список опций — в [`config.yaml.example`](../config.yaml.example).
 
 | Ключ | По умолчанию | Описание |
 | --- | --- | --- |
-| `city_ids` | — | **обязательно.** [Найти ID города](https://raw.githubusercontent.com/eladnava/pikud-haoref-api/master/cities.json) |
+| `city_ids` | — | **обязательно.** [Найти ID города](https://github.com/eladnava/pikud-haoref-api/blob/master/cities.json) |
 | `telegram.bot_token` | — | **обязательно.** Токен от @BotFather |
 | `telegram.chat_id` | — | **обязательно.** ID чата (отрицательное число) |
 | `language` | `ru` | `ru` `en` `he` `ar` |
@@ -104,7 +115,6 @@ docker compose up -d
 | `gif_mode` | `none` | `funny_cats` `assertive` `none` |
 | `title_override.*` | — | Свой заголовок по типу тревоги |
 | `description_override.*` | — | Своё описание по типу тревоги |
-| `observability.betterstack_token` | — | [Better Stack](MONITORING.md) логирование |
 
 ---
 

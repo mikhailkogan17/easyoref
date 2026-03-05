@@ -34,42 +34,59 @@
 
 ---
 
-## התחלה מהירה
+## התקנה
 
-**צריך:** Node.js 22+, Docker, מכונה שעובדת כל הזמן ([RPi](rpi.md), שרת, או [מקומי](local.md)).
+### 1. התקינו Node.js
 
-### שלב 1: בוט בטלגרם
+<details>
+<summary>Windows</summary>
 
-1. שלחו הודעה ל-[@BotFather](https://t.me/BotFather) → `/newbot` → העתיקו את הטוקן
+הורידו מ-[nodejs.org](https://nodejs.org/) (LTS, 22+). הריצו את ההתקנה, לחצו «Next».
+
+</details>
+
+<details>
+<summary>macOS</summary>
+
+```bash
+brew install node
+```
+
+או הורידו מ-[nodejs.org](https://nodejs.org/).
+
+</details>
+
+<details>
+<summary>Linux / Raspberry Pi</summary>
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
+</details>
+
+### 2. הכינו את הטלגרם
+
+1. שלחו הודעה ל-[@BotFather](https://t.me/BotFather) → `/newbot` → העתיקו את ה**טוקן**
 2. הוסיפו את הבוט לצ׳אט הקבוצתי
-3. העבירו הודעה מהצ׳אט ל-[@userinfobot](https://t.me/userinfobot) → העתיקו את ה-chat ID
+3. העבירו הודעה מהצ׳אט ל-[@userinfobot](https://t.me/userinfobot) → העתיקו את ה-**chat ID**
 
-### שלב 2: מצאו את ID העיר
+### 3. מצאו את ID העיר
 
-פתחו את [cities.json](https://raw.githubusercontent.com/eladnava/pikud-haoref-api/master/cities.json), חפשו את העיר, העתיקו את המספר מ-`id`.
+פתחו את [cities.json](https://github.com/eladnava/pikud-haoref-api/blob/master/cities.json), חפשו את העיר, העתיקו את המספר מ-`id`.
 
 דוגמה: `"id": 722` = תל אביב — דרום ויפו.
 
-### שלב 3: הפעלה
-
-על מכונה שעובדת כל הזמן (Mac / Linux / RPi):
+### 4. הריצו את ההגדרות
 
 ```bash
-npx easyoref
+npx easyoref init
 ```
 
-בהרצה הראשונה נוצר `config.yaml`. החליפו 3 ערכים:
+האשף שואל שפה, טוקן, chat ID ו-ID עיר. ההגדרות נשמרות ב-`~/.easyoref/config.yaml`.
 
-```yaml
-city_ids:
-  - 722
-language: he
-telegram:
-  bot_token: "הטוקן-שלכם"
-  chat_id: "-1001234567890"
-```
-
-הריצו שוב:
+### 5. הפעילו את הבוט
 
 ```bash
 npx easyoref
@@ -77,26 +94,20 @@ npx easyoref
 
 **זהו.** הבוט ישלח הודעות לצ׳אט בכל התרעה של פיקוד העורף באזור שלכם.
 
-<details>
-<summary>Docker</summary>
-
-```bash
-git clone https://github.com/mikhailkogan17/easyoref.git && cd easyoref
-cp config.yaml.example config.yaml   # ערכו
-docker compose up -d
-```
-
-</details>
+> הבוט צריך לרוץ כל הזמן — על RPi, שרת, או מחשב שלא כבוי.
+> מדריכים: [RPi](rpi.md) · [מקומי](local.md)
 
 ---
 
 ## הגדרות
 
-כל ההגדרות ב-[`config.yaml.example`](../config.yaml.example). העתיקו ל-`config.yaml`, הסירו comment ממה שצריך.
+קובץ הגדרות: `~/.easyoref/config.yaml`. נוצר ע״י `npx easyoref init`.
+
+רשימה מלאה: [`config.yaml.example`](../config.yaml.example).
 
 | מפתח | ברירת מחדל | תיאור |
 | --- | --- | --- |
-| `city_ids` | — | **חובה.** [מצאו ID עיר](https://raw.githubusercontent.com/eladnava/pikud-haoref-api/master/cities.json) |
+| `city_ids` | — | **חובה.** [מצאו ID עיר](https://github.com/eladnava/pikud-haoref-api/blob/master/cities.json) |
 | `telegram.bot_token` | — | **חובה.** טוקן מ-@BotFather |
 | `telegram.chat_id` | — | **חובה.** ID של הצ׳אט (מספר שלילי) |
 | `language` | `ru` | `ru` `en` `he` `ar` |
@@ -104,7 +115,6 @@ docker compose up -d
 | `gif_mode` | `none` | `funny_cats` `assertive` `none` |
 | `title_override.*` | — | כותרת מותאמת לכל סוג אזעקה |
 | `description_override.*` | — | תיאור מותאם לכל סוג אזעקה |
-| `observability.betterstack_token` | — | לוגים דרך [Better Stack](MONITORING.md) |
 
 ---
 

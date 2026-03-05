@@ -9,7 +9,8 @@
 
 import yaml from "js-yaml";
 import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
 import { isValidLanguage, type Language } from "./i18n.js";
 
 // ── Types ────────────────────────────────────────────────
@@ -49,7 +50,12 @@ interface ConfigYaml {
 
 // ── YAML Loader ──────────────────────────────────────────
 
+/** Config dir in user home — ~/.easyoref/ */
+export const CONFIG_DIR = join(homedir(), ".easyoref");
+export const HOME_CONFIG_PATH = join(CONFIG_DIR, "config.yaml");
+
 const CONFIG_SEARCH_PATHS = [
+  HOME_CONFIG_PATH,
   "config.yaml",
   "config.yml",
   "/app/config.yaml",
@@ -160,7 +166,7 @@ export const config = {
   gifMode: parseGifMode(yml.gif_mode ?? process.env.GIF_MODE ?? "none"),
 
   /** Path for persistent data */
-  dataDir: yml.data_dir ?? process.env.DATA_DIR ?? "./data",
+  dataDir: yml.data_dir ?? process.env.DATA_DIR ?? join(CONFIG_DIR, "data"),
 };
 
 /** Exported for testing */
