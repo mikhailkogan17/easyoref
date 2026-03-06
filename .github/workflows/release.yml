@@ -15,9 +15,9 @@ jobs:
     name: Version & Publish
     runs-on: ubuntu-latest
     permissions:
-      contents: write      # create tags + GitHub Releases
-      id-token: write      # npm OIDC provenance
-      packages: write      # push Docker to GHCR
+      contents: write # create tags + GitHub Releases
+      id-token: write # npm OIDC provenance
+      packages: write # push Docker to GHCR
       pull-requests: write # changesets PR
 
     steps:
@@ -44,7 +44,6 @@ jobs:
           publish: npm run release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # ── GitHub Release ────────────────────────────────────
       - name: Create GitHub Release
