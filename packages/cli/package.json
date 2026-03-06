@@ -1,6 +1,7 @@
 {
   "name": "@easyoref/cli",
   "version": "1.0.0",
+  "private": true,
   "description": "Interactive setup wizard for EasyOref",
   "type": "module",
   "bin": {
