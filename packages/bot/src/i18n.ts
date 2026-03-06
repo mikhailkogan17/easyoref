@@ -63,9 +63,9 @@ const ruPack: LanguagePack = {
   labels: {
     area: "Район",
     timeToImpact: "Подлётное время",
-    time: "Время",
+    time: "Время оповещения",
     earlyEta: "~5–12 мин",
-    sirenEta: "~1.5 мин",
+    sirenEta: "1.5 мин",
   },
 };
 
@@ -90,9 +90,9 @@ const enPack: LanguagePack = {
   labels: {
     area: "Area",
     timeToImpact: "Time to impact",
-    time: "Time",
+    time: "Alert time",
     earlyEta: "~5–12 min",
-    sirenEta: "~1.5 min",
+    sirenEta: "1.5 min",
   },
 };
 
@@ -117,9 +117,9 @@ const hePack: LanguagePack = {
   labels: {
     area: "אזור",
     timeToImpact: "זמן מעוף",
-    time: "שעה",
+    time: "שעת ההתרעה",
     earlyEta: "~5–12 דקות",
-    sirenEta: "~1.5 דקות",
+    sirenEta: "1.5 דקות",
   },
 };
 
@@ -144,9 +144,9 @@ const arPack: LanguagePack = {
   labels: {
     area: "المنطقة",
     timeToImpact: "وقت الوصول",
-    time: "الوقت",
+    time: "وقت التنبيه",
     earlyEta: "~5–12 دقيقة",
-    sirenEta: "~1.5 دقيقة",
+    sirenEta: "1.5 دقيقة",
   },
 };
 
