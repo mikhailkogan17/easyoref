@@ -17,7 +17,7 @@ export type Language = "ru" | "en" | "he" | "ar";
 
 // ── Alert metadata types ─────────────────────────────────
 
-export type AlertKind = "early" | "siren" | "incident_over";
+export type AlertKind = "early" | "siren" | "resolved";
 
 export interface AlertMeta {
   emoji: string;
@@ -54,7 +54,7 @@ const ruPack: LanguagePack = {
       title: "Цева Адом",
       description: "",
     },
-    incident_over: {
+    resolved: {
       emoji: "😮‍💨",
       title: "Инцидент завершён",
       description: "Можно покинуть защищённое помещение.",
@@ -63,9 +63,9 @@ const ruPack: LanguagePack = {
   labels: {
     area: "Район",
     timeToImpact: "Подлётное время",
-    time: "Время",
+    time: "Время оповещения",
     earlyEta: "~5–12 мин",
-    sirenEta: "~1.5 мин",
+    sirenEta: "1.5 мин",
   },
 };
 
@@ -81,7 +81,7 @@ const enPack: LanguagePack = {
       title: "Siren Alert",
       description: "Enter a protected space immediately.",
     },
-    incident_over: {
+    resolved: {
       emoji: "😮‍💨",
       title: "Incident Over",
       description: "You may leave the protected space.",
@@ -90,9 +90,9 @@ const enPack: LanguagePack = {
   labels: {
     area: "Area",
     timeToImpact: "Time to impact",
-    time: "Time",
+    time: "Alert time",
     earlyEta: "~5–12 min",
-    sirenEta: "~1.5 min",
+    sirenEta: "1.5 min",
   },
 };
 
@@ -108,7 +108,7 @@ const hePack: LanguagePack = {
       title: "צבע אדום",
       description: "היכנסו למרחב מוגן.",
     },
-    incident_over: {
+    resolved: {
       emoji: "😮‍💨",
       title: "האירוע הסתיים",
       description: "ניתן לצאת מהמרחב המוגן.",
@@ -117,9 +117,9 @@ const hePack: LanguagePack = {
   labels: {
     area: "אזור",
     timeToImpact: "זמן מעוף",
-    time: "שעה",
+    time: "שעת ההתרעה",
     earlyEta: "~5–12 דקות",
-    sirenEta: "~1.5 דקות",
+    sirenEta: "1.5 דקות",
   },
 };
 
@@ -135,7 +135,7 @@ const arPack: LanguagePack = {
       title: "صفارة إنذار",
       description: "ادخلوا إلى الملجأ فوراً.",
     },
-    incident_over: {
+    resolved: {
       emoji: "😮‍💨",
       title: "انتهى الحادث",
       description: "يمكنكم مغادرة الملجأ.",
@@ -144,9 +144,9 @@ const arPack: LanguagePack = {
   labels: {
     area: "المنطقة",
     timeToImpact: "وقت الوصول",
-    time: "الوقت",
+    time: "وقت التنبيه",
     earlyEta: "~5–12 دقيقة",
-    sirenEta: "~1.5 دقيقة",
+    sirenEta: "1.5 دقيقة",
   },
 };
 

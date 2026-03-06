@@ -63,7 +63,7 @@ type AlertType = "early_warning" | "siren" | "resolved";
 const ALERT_TYPE_TO_CONFIG: Record<AlertType, AlertTypeConfig> = {
   early_warning: "early",
   siren: "siren",
-  resolved: "incident_over",
+  resolved: "resolved",
 };
 
 function classifyAlertType(title: string): AlertType {
@@ -349,7 +349,7 @@ function formatMessage(alertType: AlertType, areas: string): string {
 
   const lines: string[] = [`<b>${emoji} ${title}</b>`];
   if (desc) lines.push(desc);
-  lines.push("", "<blockquote>");
+  lines.push("");
   lines.push(`<b>${labels.area}:</b> ${localAreas}`);
 
   if (alertType === "early_warning") {
@@ -358,9 +358,10 @@ function formatMessage(alertType: AlertType, areas: string): string {
   } else if (alertType === "siren") {
     lines.push(`<b>${labels.timeToImpact}:</b> ${labels.sirenEta}`);
     lines.push(`<b>${labels.time}:</b> ${time}`);
+  } else if (alertType === "resolved") {
+    lines.push(`<b>${labels.time}:</b> ${time}`);
   }
 
-  lines.push("</blockquote>");
   return lines.join("\n");
 }
 
