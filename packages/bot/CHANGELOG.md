@@ -1,5 +1,17 @@
 # easyoref
 
+## 1.9.0
+
+### Minor Changes
+
+- [#29](https://github.com/mikhailkogan17/easyoref/pull/29) [`e331a21`](https://github.com/mikhailkogan17/easyoref/commit/e331a210dec06a012aaa38347e47c906f2db47fc) Thanks [@mikhailkogan17](https://github.com/mikhailkogan17)! - Repeat Gemini enrichment every 20s while alert is active (was one-shot at 90s)
+
+- [#29](https://github.com/mikhailkogan17/easyoref/pull/29) [`e331a21`](https://github.com/mikhailkogan17/easyoref/commit/e331a210dec06a012aaa38347e47c906f2db47fc) Thanks [@mikhailkogan17](https://github.com/mikhailkogan17)! - New rocket format with breakdown, uncertainty markers, hits line
+
+### Patch Changes
+
+- [#29](https://github.com/mikhailkogan17/easyoref/pull/29) [`e331a21`](https://github.com/mikhailkogan17/easyoref/commit/e331a210dec06a012aaa38347e47c906f2db47fc) Thanks [@mikhailkogan17](https://github.com/mikhailkogan17)! - Auto-join monitored channels on GramJS startup to receive NewMessage events
+
 ## 1.8.0
 
 ### Minor Changes
