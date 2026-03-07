@@ -1,5 +1,17 @@
 # easyoref
 
+## 1.6.0
+
+### Minor Changes
+
+- [#20](https://github.com/mikhailkogan17/easyoref/pull/20) [`479cc30`](https://github.com/mikhailkogan17/easyoref/commit/479cc3006d3f09eb845b5dca6e8b302b5e6a4a2f) Thanks [@mikhailkogan17](https://github.com/mikhailkogan17)! - feat: LangGraph agent enrichment (GramJS + BullMQ + GPT-5-mini)
+
+  - GramJS MTProto monitor for 5 Hebrew news channels
+  - BullMQ queue/worker with 90s debounce for alert enrichment
+  - LangGraph 5-tier pipeline: region match → trust scoring → tone calibration → citation formatting
+  - Redis store for alert-event correlation
+  - Inline enrichment format with Unicode superscript citations
+
 ## 1.1.0
 
 ### Minor Changes
