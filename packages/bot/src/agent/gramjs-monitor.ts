@@ -9,7 +9,7 @@
  * Uses exponential backoff on flood errors.
  */
 
-import { TelegramClient } from "telegram";
+import { Api, TelegramClient } from "telegram";
 import { NewMessage } from "telegram/events/index.js";
 import type { NewMessageEvent } from "telegram/events/NewMessage.js";
 import { StringSession } from "telegram/sessions/index.js";
@@ -117,6 +117,29 @@ export async function startMonitor(): Promise<void> {
     return;
   }
 
+  // Auto-join all monitored public channels (required for NewMessage events)
+  for (const ch of MONITORED_CHANNELS) {
+    const username = ch.replace("@", "");
+    try {
+      await _client.invoke(new Api.channels.JoinChannel({ channel: username }));
+      logger.info("GramJS: joined channel", { channel: ch });
+    } catch (err: unknown) {
+      const errStr = String(err);
+      // CHANNELS_TOO_MUCH = account in too many channels
+      // USER_ALREADY_PARTICIPANT = already joined
+      if (errStr.includes("USER_ALREADY_PARTICIPANT")) {
+        logger.debug("GramJS: already in channel", { channel: ch });
+      } else {
+        logger.warn("GramJS: failed to join channel", {
+          channel: ch,
+          error: errStr,
+        });
+      }
+    }
+    // Rate limit: 1-2s between joins
+    await sleep(jitter(1500));
+  }
+
   // Subscribe to new messages across all monitored channels
   _client.addEventHandler(async (event: NewMessageEvent) => {
     await handleNewMessage(event).catch((err) => {
@@ -131,7 +154,10 @@ export async function startMonitor(): Promise<void> {
 
 async function handleNewMessage(event: NewMessageEvent): Promise<void> {
   const msg = event.message;
-  if (!msg?.text || !msg.peerId) return;
+  if (!msg?.text || !msg.peerId) {
+    logger.debug("GramJS: skipped message (no text or peerId)");
+    return;
+  }
 
   // Get channel username
   let channel = "";
@@ -142,6 +168,7 @@ async function handleNewMessage(event: NewMessageEvent): Promise<void> {
     } else if (chat && "title" in chat && chat.title) {
       channel = String(chat.title);
     } else {
+      logger.debug("GramJS: skipped message (unidentifiable chat)");
       return; // Not a channel we can identify
     }
   } catch {
@@ -155,11 +182,17 @@ async function handleNewMessage(event: NewMessageEvent): Promise<void> {
       c.toLowerCase() === normalizedChannel ||
       c.toLowerCase().replace("@", "") === normalizedChannel.replace("@", ""),
   );
-  if (!isMonitored) return;
+  if (!isMonitored) {
+    logger.debug("GramJS: skipped message (not monitored)", { channel });
+    return;
+  }
 
   // Only store if there's an active alert window
   const active = await getActiveAlert();
-  if (!active) return;
+  if (!active) {
+    logger.debug("GramJS: skipped message (no active alert)", { channel });
+    return;
+  }
 
   // Anti-flood: jittered delay
   await sleep(jitter(1000));
@@ -175,7 +208,7 @@ async function handleNewMessage(event: NewMessageEvent): Promise<void> {
     messageUrl,
   });
 
-  logger.debug("GramJS: stored channel post", {
+  logger.info("GramJS: stored channel post", {
     channel,
     alertId: active.alertId,
     text_len: msg.text.length,
