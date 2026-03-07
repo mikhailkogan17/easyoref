@@ -1,5 +1,11 @@
 # easyoref
 
+## 1.7.1
+
+### Patch Changes
+
+- [#25](https://github.com/mikhailkogan17/easyoref/pull/25) [`2244259`](https://github.com/mikhailkogan17/easyoref/commit/2244259561d15c44e0fe21ad6588ba6cf9232578) Thanks [@mikhailkogan17](https://github.com/mikhailkogan17)! - Auto-join monitored channels on GramJS startup to receive NewMessage events
+
 ## 1.7.0
 
 ### Minor Changes
