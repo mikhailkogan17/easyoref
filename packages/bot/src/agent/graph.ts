@@ -69,7 +69,7 @@ type AgentStateType = typeof AgentState.State;
 
 function getLLM(): ChatOpenAI {
   return new ChatOpenAI({
-    modelName: config.agent.model,
+    model: config.agent.model,
     configuration: {
       baseURL: "https://openrouter.ai/api/v1",
       defaultHeaders: {
@@ -77,7 +77,7 @@ function getLLM(): ChatOpenAI {
         "X-Title": "EasyOref",
       },
     },
-    openAIApiKey: config.agent.apiKey,
+    apiKey: config.agent.apiKey,
     temperature: 0,
     maxTokens: 400,
   });
