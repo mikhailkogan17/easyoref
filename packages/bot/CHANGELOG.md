@@ -1,5 +1,11 @@
 # easyoref
 
+## 1.11.5
+
+### Patch Changes
+
+- fix: use `apiKey` instead of deprecated `openAIApiKey` for @langchain/openai v1.x
+
 ## 1.11.4
 
 ### Patch Changes
