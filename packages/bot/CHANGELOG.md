@@ -1,5 +1,11 @@
 # easyoref
 
+## 1.11.2
+
+### Patch Changes
+
+- fix: remove stale @langchain/google-genai from root (Docker build ERESOLVE fix)
+
 ## 1.11.1
 
 ### Patch Changes
