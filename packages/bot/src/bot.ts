@@ -214,12 +214,18 @@ const CATS_EARLY_WARNING = [
   "https://media.giphy.com/media/W2FXGIVejFptc6CSxY/giphy.gif",
   "https://media1.tenor.com/m/iM6XLBMUKNcAAAAd/cat-kitty.mp4",
   "https://media1.tenor.com/m/fZ-SvpmkgSUAAAAd/uni-unico.mp4",
+  "https://media1.tenor.com/m/vR7dXSUGxkEAAAAd/scared-cat-scared.gif",   // scared cat hissing
+  "https://media1.tenor.com/m/iVVi-enilPAAAAAd/sound-the-car-alarm-cat.gif", // cat sounding alarm
+  "https://media1.tenor.com/m/NoOpefH38MAAAAAd/cat-meme-gulp.gif",           // cat gulp meme
 ];
 
 const CATS_EARLY_WARNING_NIGHT = [
   "https://media.giphy.com/media/5UH2PJ8VIEuMqN8V6R/giphy.gif",
   "https://media.tenor.com/4gH8RagrsjAAAAPo/wake-up-viralhog.mp4",
   "https://media1.tenor.com/m/4NJKe0rdz9AAAAAd/cat-kitty.mp4",
+  "https://media1.tenor.com/m/nsbw7SM-rYMAAAAd/wake-up-cat-tapping.gif", // cat tapping head to wake up
+  "https://media1.tenor.com/m/dHpGIgEseqgAAAAd/cat-kitten.gif",           // cat sleeping under pillow
+  "https://media1.tenor.com/m/VaRvEdzbkAgAAAAd/cat-meme.gif",             // kitten barely awake staring
 ];
 
 const CATS_SIREN = [
@@ -228,6 +234,7 @@ const CATS_SIREN = [
   "https://media.giphy.com/media/WLGJGG9JjpUrmUWkYf/giphy.gif",
   "https://media1.tenor.com/m/0XHXUdzJ9KIAAAAd/cat-meme.mp4",
   "https://media1.tenor.com/m/J3sih0hnKLwAAAAC/borzoi-siren.mp4",
+  "https://media1.tenor.com/m/xisTVu4M-h0AAAAd/cat-cat-alarm.gif",          // cat with red police hat
 ];
 
 const CATS_RESOLVED = [
@@ -236,6 +243,10 @@ const CATS_RESOLVED = [
   "https://media.tenor.com/wP_lARteJosAAAPo/cat-box.mp4",
   "https://media1.tenor.com/m/Td6hJ6AayEgAAAAd/cats-leave.mp4",
   "https://media1.tenor.com/m/eaLwOMoptpcAAAAd/rexi-im-out.mp4",
+  "https://media1.tenor.com/m/EmZ0N3llkAkAAAAd/cat-cats.gif",              // kittens celebrating woohoo
+  "https://media1.tenor.com/m/WsWej1C3ePYAAAAd/yippee-cat-kitty.gif",     // yippee cat
+  "https://media.tenor.com/3CFDk07jFSsAAAAj/cattime-dance.gif",           // dancing cat
+  "https://media1.tenor.com/m/MkyiUsAp8t8AAAAd/tom-and-jerry-tom-the-cat.gif", // Tom phew/relieved
 ];
 
 // ── assertive ─────────────────────────────────────────

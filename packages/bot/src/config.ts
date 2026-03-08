@@ -47,8 +47,6 @@ interface ConfigYaml {
   poll_interval_ms?: number;
   data_dir?: string;
   oref_api_url?: string;
-  /** @deprecated Use `ai` instead */
-  agent?: ConfigYamlAi;
   ai?: ConfigYamlAi;
 }
 
@@ -195,10 +193,9 @@ export const config = {
   /** Path for persistent data */
   dataDir: yml.data_dir ?? process.env.DATA_DIR ?? join(CONFIG_DIR, "data"),
 
-  /** AI enrichment config (YAML key: `ai`, legacy: `agent`) */
+  /** AI enrichment config (YAML key: `ai`) */
   agent: (() => {
-    // Support both `ai:` (new) and `agent:` (legacy) YAML keys
-    const ai = yml.ai ?? yml.agent;
+    const ai = yml.ai;
     return {
       enabled: ai?.enabled ?? false,
       apiKey: ai?.openrouter_api_key ?? process.env.OPENROUTER_API_KEY ?? "",
