@@ -100,8 +100,6 @@ ai:
   redis_url: "redis://redis:6379"   # Docker network hostname, NOT localhost
 ```
 
-> **Legacy compat:** YAML key `agent:` still works but is deprecated. Use `ai:` for new configs.
-
 ### Enrichment Format
 
 Unicode superscript citations (¹²³), absolute ETA (~HH:MM¹), inline key:value pairs, clickable source footer. No "Разведка" block — enrichment is appended inline to original alert text.
