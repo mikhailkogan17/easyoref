@@ -195,7 +195,7 @@ export const config = {
   agent: {
     enabled: yml.agent?.enabled ?? false,
     googleApiKey: yml.agent?.google_api_key ?? process.env.GOOGLE_API_KEY ?? "",
-    googleModel: yml.agent?.google_model ?? "gemini-1.5-flash",
+    googleModel: yml.agent?.google_model ?? "gemini-3-flash-preview",
     redisUrl:
       yml.agent?.redis_url ?? process.env.REDIS_URL ?? "redis://localhost:6379",
     socks5Proxy: yml.agent?.socks5_proxy ?? process.env.SOCKS5_PROXY ?? "",

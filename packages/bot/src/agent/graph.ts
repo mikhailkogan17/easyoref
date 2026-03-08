@@ -162,7 +162,8 @@ async function collectAndPreFilter(
 // Tier 1: Extract + validate (1 LLM call per post)
 // ─────────────────────────────────────────────────────────
 
-const QUAL_VALUES = '"all"|"most"|"many"|"few"|"exists"|"none"|"more_than"|"less_than"';
+const QUAL_VALUES =
+  '"all"|"most"|"many"|"few"|"exists"|"none"|"more_than"|"less_than"';
 
 const SYSTEM_PROMPT = `You analyze Telegram channel messages about a missile/rocket attack on Israel.
 Your job: extract factual data AND assess message quality. Be concise.
@@ -469,7 +470,9 @@ function vote(state: AgentStateType): Partial<AgentStateType> {
 
   // Intercepted: median across sources that reported exact number; mode for qual
   const interceptedSrcs = indexed.filter((e) => e.intercepted !== null);
-  const interceptedQualSrcs = indexed.filter((e) => e.intercepted_qual !== null);
+  const interceptedQualSrcs = indexed.filter(
+    (e) => e.intercepted_qual !== null,
+  );
   const interceptedVals = interceptedSrcs
     .map((e) => e.intercepted as number)
     .sort((a, b) => a - b);
@@ -477,9 +480,17 @@ function vote(state: AgentStateType): Partial<AgentStateType> {
     interceptedVals.length > 0
       ? interceptedVals[Math.floor(interceptedVals.length / 2)]
       : null;
-  const intercepted_qual = intercepted === null ? modeQual(interceptedQualSrcs, "intercepted_qual") : null;
-  const intercepted_qual_num = intercepted_qual !== null ? medianQualNum(interceptedQualSrcs, "intercepted_qual_num") : null;
-  const intercepted_confidence = fieldConf(interceptedSrcs.length > 0 ? interceptedSrcs : interceptedQualSrcs);
+  const intercepted_qual =
+    intercepted === null
+      ? modeQual(interceptedQualSrcs, "intercepted_qual")
+      : null;
+  const intercepted_qual_num =
+    intercepted_qual !== null
+      ? medianQualNum(interceptedQualSrcs, "intercepted_qual_num")
+      : null;
+  const intercepted_confidence = fieldConf(
+    interceptedSrcs.length > 0 ? interceptedSrcs : interceptedQualSrcs,
+  );
 
   // Sea impact: median / qual
   const seaSrcs = indexed.filter((e) => e.sea_impact !== null);
@@ -489,8 +500,12 @@ function vote(state: AgentStateType): Partial<AgentStateType> {
     .sort((a, b) => a - b);
   const sea_impact =
     seaVals.length > 0 ? seaVals[Math.floor(seaVals.length / 2)] : null;
-  const sea_impact_qual = sea_impact === null ? modeQual(seaQualSrcs, "sea_impact_qual") : null;
-  const sea_impact_qual_num = sea_impact_qual !== null ? medianQualNum(seaQualSrcs, "sea_impact_qual_num") : null;
+  const sea_impact_qual =
+    sea_impact === null ? modeQual(seaQualSrcs, "sea_impact_qual") : null;
+  const sea_impact_qual_num =
+    sea_impact_qual !== null
+      ? medianQualNum(seaQualSrcs, "sea_impact_qual_num")
+      : null;
   const sea_confidence = fieldConf(seaSrcs.length > 0 ? seaSrcs : seaQualSrcs);
 
   // Open area impact: median / qual
@@ -501,9 +516,17 @@ function vote(state: AgentStateType): Partial<AgentStateType> {
     .sort((a, b) => a - b);
   const open_area_impact =
     openVals.length > 0 ? openVals[Math.floor(openVals.length / 2)] : null;
-  const open_area_impact_qual = open_area_impact === null ? modeQual(openQualSrcs, "open_area_impact_qual") : null;
-  const open_area_impact_qual_num = open_area_impact_qual !== null ? medianQualNum(openQualSrcs, "open_area_impact_qual_num") : null;
-  const open_area_confidence = fieldConf(openSrcs.length > 0 ? openSrcs : openQualSrcs);
+  const open_area_impact_qual =
+    open_area_impact === null
+      ? modeQual(openQualSrcs, "open_area_impact_qual")
+      : null;
+  const open_area_impact_qual_num =
+    open_area_impact_qual !== null
+      ? medianQualNum(openQualSrcs, "open_area_impact_qual_num")
+      : null;
+  const open_area_confidence = fieldConf(
+    openSrcs.length > 0 ? openSrcs : openQualSrcs,
+  );
 
   // Rocket confidence
   const rocket_confidence = fieldConf(rocketSrcs);
@@ -621,9 +644,9 @@ function buildEnrichedMessage(
   }
 
   // Confidence thresholds for uncertainty markers
-  const SKIP = 0.6;     // below this → skip field entirely
+  const SKIP = 0.6; // below this → skip field entirely
   const UNCERTAIN = 0.75; // below this (but ≥ SKIP) → add (?)
-  const CERTAIN = 0.95;   // "none" qual requires this level
+  const CERTAIN = 0.95; // "none" qual requires this level
 
   // Convert QualCount to Russian display string.
   // Returns null if the qual should be suppressed (e.g. "none" below CERTAIN).
@@ -677,11 +700,29 @@ function buildEnrichedMessage(
         : `~${r.rocket_count_min}–${r.rocket_count_max}`;
 
     const bParts: string[] = [];
-    const bi = breakdownItem("перехвачено", r.intercepted, r.intercepted_qual, r.intercepted_qual_num, r.intercepted_confidence);
+    const bi = breakdownItem(
+      "перехвачено",
+      r.intercepted,
+      r.intercepted_qual,
+      r.intercepted_qual_num,
+      r.intercepted_confidence,
+    );
     if (bi) bParts.push(bi);
-    const bs = breakdownItem("упали в море", r.sea_impact, r.sea_impact_qual, r.sea_impact_qual_num, r.sea_confidence);
+    const bs = breakdownItem(
+      "упали в море",
+      r.sea_impact,
+      r.sea_impact_qual,
+      r.sea_impact_qual_num,
+      r.sea_confidence,
+    );
     if (bs) bParts.push(bs);
-    const bo = breakdownItem("открытая местность", r.open_area_impact, r.open_area_impact_qual, r.open_area_impact_qual_num, r.open_area_confidence);
+    const bo = breakdownItem(
+      "открытая местность",
+      r.open_area_impact,
+      r.open_area_impact_qual,
+      r.open_area_impact_qual_num,
+      r.open_area_confidence,
+    );
     if (bo) bParts.push(bo);
 
     const breakdown = bParts.length > 0 ? `, из них: ${bParts.join(", ")}` : "";
@@ -789,31 +830,11 @@ async function editMessage(
 
   const tgBot = new Bot(config.botToken);
 
-  // No valid sources found at all — append a "pending" note
+  // No valid sources found — silently skip (don't touch the message)
   if (!votedResult) {
-    logger.info("Agent: no voted result — marking message as pending", {
+    logger.info("Agent: no voted result — skipping edit", {
       alertId: state.alertId,
     });
-    const pendingText = state.currentText + "\n<i>Данные уточняются...</i>";
-    try {
-      if (state.isCaption) {
-        await tgBot.api.editMessageCaption(state.chatId, state.messageId, {
-          caption: pendingText,
-          parse_mode: "HTML",
-        });
-      } else {
-        await tgBot.api.editMessageText(
-          state.chatId,
-          state.messageId,
-          pendingText,
-          { parse_mode: "HTML" },
-        );
-      }
-    } catch (err) {
-      logger.warn("Agent: failed to edit message (pending)", {
-        error: String(err),
-      });
-    }
     return {};
   }
 
