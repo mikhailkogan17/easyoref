@@ -1,5 +1,11 @@
 # easyoref
 
+## 1.11.3
+
+### Patch Changes
+
+- feat: more cat GIFs (early warning 5→8, night 3→6, siren 5→6, resolved 5→9); remove deprecated agent: YAML key
+
 ## 1.11.2
 
 ### Patch Changes
