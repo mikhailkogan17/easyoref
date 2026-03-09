@@ -1,5 +1,11 @@
 # easyoref
 
+## 1.12.0
+
+### Minor Changes
+
+- Session-based enrichment lifecycle: early_warning (30min/20s) → siren (15min/20s) → resolved tail (10min/60s)
+
 ## 1.11.7
 
 ### Patch Changes
