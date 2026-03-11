@@ -1,0 +1,493 @@
+/**
+ * Message building and Telegram editing.
+ *
+ * Builds enriched message text from voted consensus + carry-forward data.
+ * Uses inline [[1]](url) citations. No superscripts. No footer sources.
+ */
+
+import { Bot } from "grammy";
+import { config } from "../config.js";
+import * as logger from "../logger.js";
+import { textHash, toIsraelTime } from "./helpers.js";
+import { saveEnrichmentData } from "./store.js";
+import type {
+  AlertType,
+  CitedSource,
+  EnrichmentData,
+  InlineCite,
+  QualCount,
+  VotedResult,
+} from "./types.js";
+import { emptyEnrichmentData } from "./types.js";
+
+// ── Country translations ───────────────────────────────
+
+/** EN country name → Russian */
+export const COUNTRY_RU: Record<string, string> = {
+  Iran: "Иран",
+  Yemen: "Йемен",
+  Lebanon: "Ливан",
+  Gaza: "Газа",
+  Iraq: "Ирак",
+  Syria: "Сирия",
+  Hezbollah: "Хезболла",
+};
+
+// ── Citation helpers ───────────────────────────────────
+
+/** Format inline citations: [[1]](url), [[2]](url) */
+export function inlineCites(
+  indices: number[],
+  citedSources: CitedSource[],
+): string {
+  const parts: string[] = [];
+  for (const idx of indices) {
+    const src = citedSources.find((s) => s.index === idx);
+    if (src?.messageUrl) {
+      parts.push(`<a href="${src.messageUrl}">[${idx}]</a>`);
+    }
+  }
+  return parts.length > 0 ? " " + parts.join(", ") : "";
+}
+
+/** Get InlineCite[] from citation indices */
+export function extractCites(
+  indices: number[],
+  citedSources: CitedSource[],
+): InlineCite[] {
+  const cites: InlineCite[] = [];
+  for (const idx of indices) {
+    const src = citedSources.find((s) => s.index === idx);
+    if (src?.messageUrl) {
+      cites.push({ url: src.messageUrl, channel: src.channel });
+    }
+  }
+  return cites;
+}
+
+/** Format inline citations from InlineCite[] (carry-forward data) */
+export function inlineCitesFromData(cites: InlineCite[]): string {
+  if (cites.length === 0) return "";
+  return (
+    " " + cites.map((c, i) => `<a href="${c.url}">[${i + 1}]</a>`).join(", ")
+  );
+}
+
+// ── Confidence thresholds ──────────────────────────────
+
+export const SKIP = 0.6;
+export const UNCERTAIN = 0.75;
+export const CERTAIN = 0.95;
+
+// ── Display helpers ────────────────────────────────────
+
+function qualDisplay(
+  qual: QualCount | null,
+  qualNum: number | null,
+  conf: number,
+): string | null {
+  if (qual === null) return null;
+  if (qual === "none") return conf >= CERTAIN ? "нет" : null;
+  const map: Record<QualCount, string> = {
+    all: "все",
+    most: "большинство",
+    many: "много",
+    few: "несколько",
+    exists: "есть",
+    none: "нет",
+    more_than: qualNum != null ? `>${qualNum}` : ">1",
+    less_than: qualNum != null ? `<${qualNum}` : "<нескольких",
+  };
+  return map[qual];
+}
+
+// ── Build enrichment data from vote ────────────────────
+
+/**
+ * Build enrichment data from current vote + previous enrichment (carry-forward).
+ * Returns updated EnrichmentData for Redis persistence.
+ */
+export function buildEnrichmentFromVote(
+  r: VotedResult,
+  prev: EnrichmentData,
+  alertType: AlertType,
+  alertTs: number,
+): EnrichmentData {
+  const data: EnrichmentData = { ...prev };
+
+  // Origin
+  if (r.country_origins && r.country_origins.length > 0) {
+    data.origin = r.country_origins
+      .map((c) => COUNTRY_RU[c.name] ?? c.name)
+      .join(" + ");
+    data.originCites = r.country_origins.flatMap((c) =>
+      extractCites(c.citations, r.citedSources),
+    );
+  }
+
+  // ETA — only for early_warning/siren
+  if (
+    r.eta_refined_minutes !== null &&
+    (alertType === "early_warning" || alertType === "siren")
+  ) {
+    const absTime = new Date(
+      alertTs + r.eta_refined_minutes * 60_000,
+    ).toLocaleTimeString("he-IL", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Asia/Jerusalem",
+    });
+    data.etaAbsolute = `~${absTime}`;
+    data.etaCites = extractCites(r.eta_citations, r.citedSources);
+  }
+
+  // Rocket count
+  if (r.rocket_count_min !== null && r.rocket_count_max !== null) {
+    const u = r.rocket_confidence < UNCERTAIN ? " (?)" : "";
+    data.rocketCount =
+      r.rocket_count_min === r.rocket_count_max
+        ? `${r.rocket_count_min}${u}`
+        : `~${r.rocket_count_min}–${r.rocket_count_max}${u}`;
+    data.rocketCites = extractCites(r.rocket_citations, r.citedSources);
+  }
+
+  // Cassette
+  if (r.is_cassette !== null && r.is_cassette_confidence >= SKIP) {
+    data.isCassette = r.is_cassette;
+  }
+
+  // Intercepted
+  if (r.intercepted !== null && r.intercepted_confidence >= SKIP) {
+    const u = r.intercepted_confidence < UNCERTAIN ? " (?)" : "";
+    data.intercepted = `${r.intercepted}${u}`;
+    data.interceptedCites = extractCites(
+      r.citedSources
+        .filter((s) => {
+          const ext = r.citedSources.find((cs) => cs.index === s.index);
+          return ext !== undefined;
+        })
+        .map((s) => s.index),
+      r.citedSources,
+    );
+  } else if (r.intercepted_qual !== null && r.intercepted_confidence >= SKIP) {
+    const qs = qualDisplay(
+      r.intercepted_qual,
+      r.intercepted_qual_num,
+      r.intercepted_confidence,
+    );
+    if (qs) data.intercepted = qs;
+  }
+
+  // Hits
+  if (
+    r.hits_confirmed !== null &&
+    r.hits_confirmed > 0 &&
+    r.hits_confidence >= SKIP
+  ) {
+    const u = r.hits_confidence < UNCERTAIN ? " (?)" : "";
+    data.hitsConfirmed = `${r.hits_confirmed}${u}`;
+    data.hitsCites = extractCites(r.hits_citations, r.citedSources);
+  }
+
+  // Casualties
+  if (
+    r.casualties !== null &&
+    r.casualties > 0 &&
+    r.casualties_confidence >= SKIP
+  ) {
+    const u = r.casualties_confidence < UNCERTAIN ? " (?)" : "";
+    data.casualties = `${r.casualties}${u}`;
+    data.casualtiesCites = extractCites(r.casualties_citations, r.citedSources);
+  }
+
+  // Injuries
+  if (r.injuries !== null && r.injuries > 0 && r.injuries_confidence >= SKIP) {
+    const u = r.injuries_confidence < UNCERTAIN ? " (?)" : "";
+    data.injuries = `${r.injuries}${u}`;
+    data.injuriesCites = extractCites(r.injuries_citations, r.citedSources);
+  }
+
+  // Early warning time
+  if (alertType === "early_warning" && !data.earlyWarningTime) {
+    data.earlyWarningTime = toIsraelTime(alertTs);
+  }
+
+  return data;
+}
+
+// ── Build enriched message text ────────────────────────
+
+/**
+ * Build the enriched message text from current message + enrichment data.
+ * Uses inline [[1]](url) citations.
+ */
+export function buildEnrichedMessage(
+  currentText: string,
+  alertType: AlertType,
+  alertTs: number,
+  enrichment: EnrichmentData,
+): string {
+  let text = currentText;
+
+  // ── Refine ETA in-place ──
+  if (
+    enrichment.etaAbsolute &&
+    (alertType === "early_warning" || alertType === "siren")
+  ) {
+    const etaCiteStr = inlineCitesFromData(enrichment.etaCites);
+    const refined = `${enrichment.etaAbsolute}${etaCiteStr}`;
+
+    const etaPatterns = [
+      /~\d+[–-]\d+\s*мин/,
+      /~\d+[–-]\d+\s*min/,
+      /~\d+[–-]\d+\s*דקות/,
+      /~\d+[–-]\d+\s*دقيقة/,
+      /1\.5\s*мин/,
+      /1\.5\s*min/,
+      /1\.5\s*דקות/,
+      /1\.5\s*دقيقة/,
+    ];
+
+    for (const pattern of etaPatterns) {
+      if (pattern.test(text)) {
+        text = text.replace(pattern, refined);
+        break;
+      }
+    }
+  }
+
+  // ── Siren: show early warning time ──
+  if (alertType === "siren" && enrichment.earlyWarningTime) {
+    text = insertBeforeTimeLine(
+      text,
+      `<b>Раннее предупреждение:</b> было в ${enrichment.earlyWarningTime}`,
+    );
+  }
+
+  // ── Origin ──
+  if (enrichment.origin) {
+    const citeStr = inlineCitesFromData(enrichment.originCites);
+    text = insertBeforeTimeLine(
+      text,
+      `\n<b>Откуда:</b> ${enrichment.origin}${citeStr}`,
+    );
+  }
+
+  // ── Rocket count + breakdown ──
+  if (enrichment.rocketCount) {
+    const citeStr = inlineCitesFromData(enrichment.rocketCites);
+    const cassette = enrichment.isCassette ? ", есть кассетные" : "";
+
+    let breakdown = "";
+    const bParts: string[] = [];
+    if (enrichment.intercepted) {
+      bParts.push(`перехвачено — ${enrichment.intercepted}`);
+    }
+    if (enrichment.seaImpact) {
+      bParts.push(`упали в море — ${enrichment.seaImpact}`);
+    }
+    if (enrichment.openAreaImpact) {
+      bParts.push(`открытая местность — ${enrichment.openAreaImpact}`);
+    }
+    if (bParts.length > 0) breakdown = `, из них: ${bParts.join(", ")}`;
+
+    text = insertBeforeTimeLine(
+      text,
+      `<b>Ракет:</b> ${enrichment.rocketCount}${breakdown}${cassette}${citeStr}`,
+    );
+  } else if (enrichment.intercepted && alertType !== "early_warning") {
+    const citeStr = inlineCitesFromData(enrichment.interceptedCites);
+    text = insertBeforeTimeLine(
+      text,
+      `<b>Перехвачено:</b> ${enrichment.intercepted}${citeStr}`,
+    );
+  }
+
+  // ── Hits ──
+  if (enrichment.hitsConfirmed && alertType !== "early_warning") {
+    const areaLabel = Object.values(config.agent.areaLabels)[0] ?? "район";
+    const citeStr = inlineCitesFromData(enrichment.hitsCites);
+    text = insertBeforeTimeLine(
+      text,
+      `<b>Попадания (${areaLabel}):</b> ${enrichment.hitsConfirmed}${citeStr}`,
+    );
+  }
+
+  // ── Casualties / Injuries (resolved only) ──
+  if (enrichment.casualties && alertType === "resolved") {
+    const citeStr = inlineCitesFromData(enrichment.casualtiesCites);
+    text = insertBeforeTimeLine(
+      text,
+      `<b>Погибшие:</b> ${enrichment.casualties}${citeStr}`,
+    );
+  }
+  if (enrichment.injuries && alertType === "resolved") {
+    const citeStr = inlineCitesFromData(enrichment.injuriesCites);
+    text = insertBeforeTimeLine(
+      text,
+      `<b>Пострадавшие:</b> ${enrichment.injuries}${citeStr}`,
+    );
+  }
+
+  return text;
+}
+
+/**
+ * Insert a line before the time line (last "Время" / "Time" / "שעת" line).
+ */
+export function insertBeforeTimeLine(text: string, line: string): string {
+  const timePattern =
+    /(<b>(?:Время оповещения|Alert time|שעת ההתרעה|وقت الإنذار):<\/b>)/;
+  const match = text.match(timePattern);
+  if (match?.index !== undefined) {
+    return text.slice(0, match.index) + line + "\n" + text.slice(match.index);
+  }
+  const lines = text.split("\n");
+  lines.splice(Math.max(lines.length - 1, 0), 0, line);
+  return lines.join("\n");
+}
+
+// ── Edit message ───────────────────────────────────────
+
+export interface EditMessageInput {
+  alertId: string;
+  alertTs: number;
+  alertType: AlertType;
+  chatId: string;
+  messageId: number;
+  isCaption: boolean;
+  currentText: string;
+  votedResult: VotedResult | null;
+  previousEnrichment: EnrichmentData;
+}
+
+/**
+ * Edit the Telegram message with enriched data.
+ */
+export async function editMessage(input: EditMessageInput): Promise<void> {
+  if (!config.botToken) return;
+
+  const tgBot = new Bot(config.botToken);
+  const prev = input.previousEnrichment ?? emptyEnrichmentData();
+
+  if (!input.votedResult) {
+    // No new data — try carry-forward only
+    if (prev.origin || prev.intercepted) {
+      const newText = buildEnrichedMessage(
+        input.currentText,
+        input.alertType,
+        input.alertTs,
+        prev,
+      );
+
+      const hash = textHash(newText);
+      if (hash === prev.lastEditHash) {
+        logger.info("Agent: no change (dedup)", { alertId: input.alertId });
+        return;
+      }
+
+      try {
+        if (input.isCaption) {
+          await tgBot.api.editMessageCaption(input.chatId, input.messageId, {
+            caption: newText,
+            parse_mode: "HTML",
+          });
+        } else {
+          await tgBot.api.editMessageText(
+            input.chatId,
+            input.messageId,
+            newText,
+            { parse_mode: "HTML" },
+          );
+        }
+
+        prev.lastEditHash = hash;
+        await saveEnrichmentData(prev);
+
+        logger.info("Agent: enriched (carry-forward)", {
+          alertId: input.alertId,
+        });
+      } catch (err) {
+        const errStr = String(err);
+        if (errStr.includes("message is not modified")) {
+          prev.lastEditHash = hash;
+          await saveEnrichmentData(prev);
+        } else {
+          logger.error("Agent: edit failed", {
+            alertId: input.alertId,
+            error: errStr,
+          });
+        }
+      }
+    } else {
+      logger.info("Agent: no voted result — skipping", {
+        alertId: input.alertId,
+      });
+    }
+    return;
+  }
+
+  // Build enrichment data: merge vote + previous
+  const enrichment = buildEnrichmentFromVote(
+    input.votedResult,
+    prev,
+    input.alertType,
+    input.alertTs,
+  );
+
+  const newText = buildEnrichedMessage(
+    input.currentText,
+    input.alertType,
+    input.alertTs,
+    enrichment,
+  );
+
+  // Dedup: skip if text hasn't changed
+  const hash = textHash(newText);
+  if (hash === enrichment.lastEditHash) {
+    logger.info("Agent: no change (dedup)", { alertId: input.alertId });
+    return;
+  }
+
+  if (input.votedResult.confidence < config.agent.confidenceThreshold) {
+    logger.info("Agent: low confidence — editing with (?) markers", {
+      alertId: input.alertId,
+      confidence: input.votedResult.confidence,
+    });
+  }
+
+  try {
+    if (input.isCaption) {
+      await tgBot.api.editMessageCaption(input.chatId, input.messageId, {
+        caption: newText,
+        parse_mode: "HTML",
+      });
+    } else {
+      await tgBot.api.editMessageText(input.chatId, input.messageId, newText, {
+        parse_mode: "HTML",
+      });
+    }
+
+    enrichment.lastEditHash = hash;
+    await saveEnrichmentData(enrichment);
+
+    logger.info("Agent: enriched", {
+      alertId: input.alertId,
+      messageId: input.messageId,
+      confidence: input.votedResult.confidence,
+      sources: input.votedResult.sources_count,
+      phase: input.alertType,
+    });
+  } catch (err) {
+    const errStr = String(err);
+    if (errStr.includes("message is not modified")) {
+      enrichment.lastEditHash = hash;
+      await saveEnrichmentData(enrichment);
+    } else {
+      logger.error("Agent: edit failed", {
+        alertId: input.alertId,
+        error: errStr,
+      });
+    }
+  }
+}

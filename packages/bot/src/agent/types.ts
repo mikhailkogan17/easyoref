@@ -2,6 +2,29 @@
 
 export type AlertType = "early_warning" | "siren" | "resolved";
 
+// ── Channel tracking (pre-graph structure) ─────────────
+
+export interface TrackedMessage {
+  timestamp: number;
+  text: string;
+  url?: string;
+  channel: string;
+}
+
+export interface ChannelWithUpdates {
+  channel: string;
+  /** Posts from session start to last enrichment job (already processed) */
+  prev_tracked_messages: TrackedMessage[];
+  /** Posts since last enrichment job (new, need processing) */
+  last_tracked_messages: TrackedMessage[];
+}
+
+export interface ChannelTracking {
+  track_start_timestamp: number;
+  last_update_timestamp: number;
+  channels_with_updates: ChannelWithUpdates[];
+}
+
 /**
  * Qualitative count descriptor — used when channels report without exact numbers.
  * "none" is only shown if confidence > 0.95 and explicitly stated in source.

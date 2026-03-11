@@ -47,7 +47,8 @@ import { vi } from "vitest";
 vi.mock("../config.js", () => ({
   config: {
     agent: {
-      model: "google/gemini-3-flash-preview",
+      model: "google/gemini-3.1-flash-lite-preview",
+      extractModel: "google/gemini-3-flash-preview",
       apiKey: "", // Will be set dynamically
       mcpTools: false,
       confidenceThreshold: 0.65,
@@ -92,6 +93,10 @@ vi.mock("../agent/store.js", () => ({
   getActiveSession: vi.fn().mockResolvedValue(null),
   saveEnrichmentData: vi.fn(),
   pushSessionPost: vi.fn(),
+  getCachedExtractions: vi.fn().mockResolvedValue(new Map()),
+  saveCachedExtractions: vi.fn(),
+  getLastUpdateTs: vi.fn().mockResolvedValue(0),
+  setLastUpdateTs: vi.fn(),
 }));
 
 vi.mock("../agent/clarify.js", () => ({
@@ -99,7 +104,20 @@ vi.mock("../agent/clarify.js", () => ({
 }));
 
 // Import AFTER mocks
-const { _test } = await import("../agent/graph.js");
+import {
+  EXTRACT_SYSTEM_PROMPT,
+  getExtractLLM,
+  getPhaseInstructions,
+  postFilter,
+} from "../agent/extract.js";
+import { textHash, toIsraelTime } from "../agent/helpers.js";
+import {
+  buildEnrichedMessage,
+  buildEnrichmentFromVote,
+  inlineCites,
+  inlineCitesFromData,
+} from "../agent/message.js";
+import { vote } from "../agent/vote.js";
 const { config } = await import("../config.js");
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -146,40 +164,19 @@ const ALERT_AREAS = ["תל אביב - דרום העיר ויפו"];
 // Deterministic tests (no API needed)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-describe("buildRegionKeywords", () => {
-  it("includes configured area words", () => {
-    const kw = _test.buildRegionKeywords();
-    expect(kw).toContain("תל אביב - דרום העיר ויפו");
-    expect(kw).toContain("ישראל");
-    expect(kw).toContain("ракет");
-  });
-});
-
-describe("TIME_WINDOW_MS", () => {
-  it("early_warning has 5 min window", () => {
-    expect(_test.TIME_WINDOW_MS.early_warning).toBe(5 * 60 * 1000);
-  });
-  it("siren has 10 min window", () => {
-    expect(_test.TIME_WINDOW_MS.siren).toBe(10 * 60 * 1000);
-  });
-  it("resolved has 30 min window", () => {
-    expect(_test.TIME_WINDOW_MS.resolved).toBe(30 * 60 * 1000);
-  });
-});
-
 describe("toIsraelTime", () => {
   it("formats UTC timestamp to Israel time", () => {
     // 14:30 UTC = 16:30 IST (UTC+2 winter) or 17:30 IDT (UTC+3 summer)
-    const formatted = _test.toIsraelTime(ALERT_TS);
+    const formatted = toIsraelTime(ALERT_TS);
     expect(formatted).toMatch(/^\d{2}:\d{2}$/);
   });
 });
 
 describe("textHash", () => {
   it("returns consistent md5 hash", () => {
-    const h1 = _test.textHash("hello");
-    const h2 = _test.textHash("hello");
-    const h3 = _test.textHash("world");
+    const h1 = textHash("hello");
+    const h2 = textHash("hello");
+    const h3 = textHash("world");
     expect(h1).toBe(h2);
     expect(h1).not.toBe(h3);
     expect(h1).toHaveLength(32);
@@ -189,29 +186,6 @@ describe("textHash", () => {
 // ── Post-filter ────────────────────────────────────────
 
 describe("postFilter", () => {
-  function makeState(
-    extractions: ValidatedExtraction[],
-  ): Parameters<typeof _test.postFilter>[0] {
-    return {
-      alertId: "test",
-      alertTs: ALERT_TS,
-      alertType: "early_warning",
-      alertAreas: ALERT_AREAS,
-      chatId: "-100123",
-      messageId: 1,
-      isCaption: false,
-      currentText: "",
-      channelPosts: [],
-      filteredPosts: [],
-      extractions,
-      votedResult: null,
-      clarifyAttempted: false,
-      previousEnrichment: emptyEnrichmentData(),
-      sessionStartTs: ALERT_TS,
-      phaseStartTs: ALERT_TS,
-    };
-  }
-
   it("rejects stale posts (time_relevance < 0.5)", () => {
     const ext: ValidatedExtraction = {
       channel: "@idf_telegram",
@@ -239,10 +213,9 @@ describe("postFilter", () => {
       valid: true,
     };
 
-    const result = _test.postFilter(makeState([ext]));
-    const exts = result.extractions!;
-    expect(exts[0]!.valid).toBe(false);
-    expect(exts[0]!.reject_reason).toBe("stale_post");
+    const result = postFilter([ext], "test");
+    expect(result[0]!.valid).toBe(false);
+    expect(result[0]!.reject_reason).toBe("stale_post");
   });
 
   it("rejects region-irrelevant posts", () => {
@@ -272,8 +245,8 @@ describe("postFilter", () => {
       valid: true,
     };
 
-    const result = _test.postFilter(makeState([ext]));
-    expect(result.extractions![0]!.reject_reason).toBe("region_irrelevant");
+    const result = postFilter([ext], "test");
+    expect(result[0]!.reject_reason).toBe("region_irrelevant");
   });
 
   it("rejects no-data posts", () => {
@@ -303,8 +276,8 @@ describe("postFilter", () => {
       valid: true,
     };
 
-    const result = _test.postFilter(makeState([ext]));
-    expect(result.extractions![0]!.reject_reason).toBe("no_data");
+    const result = postFilter([ext], "test");
+    expect(result[0]!.reject_reason).toBe("no_data");
   });
 
   it("passes valid extraction with all checks", () => {
@@ -334,40 +307,17 @@ describe("postFilter", () => {
       valid: true,
     };
 
-    const result = _test.postFilter(makeState([ext]));
-    expect(result.extractions![0]!.valid).toBe(true);
+    const result = postFilter([ext], "test");
+    expect(result[0]!.valid).toBe(true);
   });
 });
 
 // ── Vote ───────────────────────────────────────────────
 
 describe("vote", () => {
-  function makeState(
-    extractions: ValidatedExtraction[],
-  ): Parameters<typeof _test.vote>[0] {
-    return {
-      alertId: "test",
-      alertTs: ALERT_TS,
-      alertType: "siren",
-      alertAreas: ALERT_AREAS,
-      chatId: "-100123",
-      messageId: 1,
-      isCaption: false,
-      currentText: "",
-      channelPosts: [],
-      filteredPosts: [],
-      extractions,
-      votedResult: null,
-      clarifyAttempted: false,
-      previousEnrichment: emptyEnrichmentData(),
-      sessionStartTs: ALERT_TS,
-      phaseStartTs: ALERT_TS,
-    };
-  }
-
   it("returns null for empty extractions", () => {
-    const result = _test.vote(makeState([]));
-    expect(result.votedResult).toBeNull();
+    const result = vote([], "test");
+    expect(result).toBeNull();
   });
 
   it("returns null when all extractions are invalid", () => {
@@ -397,8 +347,8 @@ describe("vote", () => {
       valid: false,
       reject_reason: "stale_post",
     };
-    const result = _test.vote(makeState([ext]));
-    expect(result.votedResult).toBeNull();
+    const result = vote([ext], "test");
+    expect(result).toBeNull();
   });
 
   it("aggregates country origins from multiple sources", () => {
@@ -437,8 +387,8 @@ describe("vote", () => {
       messageUrl: "https://t.me/yediotnews25/88901",
     };
 
-    const result = _test.vote(makeState([ext1, ext2]));
-    const voted = result.votedResult!;
+    const result = vote([ext1, ext2], "test");
+    const voted = result!;
 
     expect(voted).not.toBeNull();
     expect(voted.country_origins).toHaveLength(1);
@@ -477,8 +427,8 @@ describe("vote", () => {
       messageUrl: "https://t.me/N12LIVE/167790",
     };
 
-    const result = _test.vote(makeState([ext]));
-    const voted = result.votedResult!;
+    const result = vote([ext], "test");
+    const voted = result!;
 
     expect(voted.intercepted).toBe(12);
     expect(voted.sea_impact).toBe(2);
@@ -542,7 +492,7 @@ describe("buildEnrichmentFromVote", () => {
       ],
     };
 
-    const result = _test.buildEnrichmentFromVote(
+    const result = buildEnrichmentFromVote(
       sirenVote,
       earlyEnrichment,
       "siren",
@@ -578,7 +528,7 @@ describe("buildEnrichedMessage", () => {
       { url: "https://t.me/N12LIVE/167775", channel: "@N12LIVE" },
     ];
 
-    const result = _test.buildEnrichedMessage(
+    const result = buildEnrichedMessage(
       baseMessage,
       "early_warning",
       ALERT_TS,
@@ -604,7 +554,7 @@ describe("buildEnrichedMessage", () => {
       { url: "https://t.me/N12LIVE/167775", channel: "@N12LIVE" },
     ];
 
-    const result = _test.buildEnrichedMessage(
+    const result = buildEnrichedMessage(
       baseMessage,
       "early_warning",
       ALERT_TS,
@@ -629,7 +579,7 @@ describe("buildEnrichedMessage", () => {
     enrichment.originCites = [];
     enrichment.earlyWarningTime = "16:30";
 
-    const result = _test.buildEnrichedMessage(
+    const result = buildEnrichedMessage(
       sirenMessage,
       "siren",
       ALERT_TS,
@@ -661,7 +611,7 @@ describe("buildEnrichedMessage", () => {
       { url: "https://t.me/N12LIVE/167790", channel: "@N12LIVE" },
     ];
 
-    const result = _test.buildEnrichedMessage(
+    const result = buildEnrichedMessage(
       resolvedMessage,
       "resolved",
       ALERT_TS,
@@ -687,7 +637,7 @@ describe("buildEnrichedMessage", () => {
     enrichment.casualties = "2";
     enrichment.casualtiesCites = [];
 
-    const result = _test.buildEnrichedMessage(
+    const result = buildEnrichedMessage(
       sirenMessage,
       "siren",
       ALERT_TS,
@@ -715,7 +665,7 @@ describe("inlineCites / inlineCitesFromData", () => {
       },
     ];
 
-    const result = _test.inlineCites([1, 2], sources);
+    const result = inlineCites([1, 2], sources);
     expect(result).toContain('<a href="https://t.me/N12LIVE/167775">[1]</a>');
     expect(result).toContain(
       '<a href="https://t.me/yediotnews25/88901">[2]</a>',
@@ -727,13 +677,13 @@ describe("inlineCites / inlineCitesFromData", () => {
   it("inlineCitesFromData formats carry-forward cites", () => {
     const cites = [{ url: "https://t.me/N12LIVE/167775", channel: "@N12LIVE" }];
 
-    const result = _test.inlineCitesFromData(cites);
+    const result = inlineCitesFromData(cites);
     expect(result).toContain('<a href="https://t.me/N12LIVE/167775">[1]</a>');
   });
 
   it("returns empty string for no cites", () => {
-    expect(_test.inlineCites([], [])).toBe("");
-    expect(_test.inlineCitesFromData([])).toBe("");
+    expect(inlineCites([], [])).toBe("");
+    expect(inlineCitesFromData([])).toBe("");
   });
 });
 
@@ -755,17 +705,17 @@ describe.skipIf(!HAS_API)("LLM extraction (real API)", () => {
     post: { channel: string; text: string; ts: number },
     alertType: "early_warning" | "siren" | "resolved" = "early_warning",
   ): Promise<Record<string, unknown>> {
-    const llm = _test.getLLM();
-    const alertTimeIL = _test.toIsraelTime(ALERT_TS);
-    const postTimeIL = _test.toIsraelTime(post.ts);
-    const nowIL = _test.toIsraelTime(Date.now());
+    const llm = getExtractLLM();
+    const alertTimeIL = toIsraelTime(ALERT_TS);
+    const postTimeIL = toIsraelTime(post.ts);
+    const nowIL = toIsraelTime(Date.now());
     const postAgeMin = Math.round((ALERT_TS - post.ts) / 60_000);
     const postAgeSuffix =
       postAgeMin > 0
         ? `(${postAgeMin} min BEFORE alert)`
         : `(${Math.abs(postAgeMin)} min AFTER alert)`;
-    const phaseInstructions = _test.getPhaseInstructions(alertType);
-    const systemPrompt = _test.SYSTEM_PROMPT_BASE + "\n\n" + phaseInstructions;
+    const phaseInstructions = getPhaseInstructions(alertType);
+    const systemPrompt = EXTRACT_SYSTEM_PROMPT + "\n\n" + phaseInstructions;
 
     const contextHeader =
       `Alert time: ${alertTimeIL} (Israel)\n` +
@@ -852,7 +802,7 @@ describe.skipIf(!HAS_API)("LLM extraction (real API)", () => {
       "<b>Время оповещения:</b> 16:30",
     ].join("\n");
 
-    const result = _test.buildEnrichedMessage(
+    const result = buildEnrichedMessage(
       earlyMessage,
       "early_warning",
       ALERT_TS,
@@ -879,17 +829,17 @@ describe.skipIf(!HAS_API)("Lebanon bug regression (real API)", () => {
     // Simulate the exact bug scenario:
     // - POST_LEBANON_STALE from @idf_telegram (2.5 hours old)
     // - POST_IRAN_LAUNCH from @N12LIVE (current alert)
-    const llm = _test.getLLM();
-    const alertTimeIL = _test.toIsraelTime(ALERT_TS);
-    const nowIL = _test.toIsraelTime(Date.now());
-    const phaseInstructions = _test.getPhaseInstructions("early_warning");
-    const systemPrompt = _test.SYSTEM_PROMPT_BASE + "\n\n" + phaseInstructions;
+    const llm = getExtractLLM();
+    const alertTimeIL = toIsraelTime(ALERT_TS);
+    const nowIL = toIsraelTime(Date.now());
+    const phaseInstructions = getPhaseInstructions("early_warning");
+    const systemPrompt = EXTRACT_SYSTEM_PROMPT + "\n\n" + phaseInstructions;
 
     const posts = [POST_LEBANON_STALE, POST_IRAN_LAUNCH];
     const extractions: ValidatedExtraction[] = [];
 
     for (const post of posts) {
-      const postTimeIL = _test.toIsraelTime(post.ts);
+      const postTimeIL = toIsraelTime(post.ts);
       const postAgeMin = Math.round((ALERT_TS - post.ts) / 60_000);
       const postAgeSuffix =
         postAgeMin > 0
@@ -930,34 +880,14 @@ describe.skipIf(!HAS_API)("Lebanon bug regression (real API)", () => {
     }
 
     // Run post-filter
-    const state = {
-      alertId: "test-regression",
-      alertTs: ALERT_TS,
-      alertType: "early_warning" as const,
-      alertAreas: ALERT_AREAS,
-      chatId: "-100123",
-      messageId: 1,
-      isCaption: false,
-      currentText: "",
-      channelPosts: [],
-      filteredPosts: [],
-      extractions,
-      votedResult: null,
-      clarifyAttempted: false,
-      previousEnrichment: emptyEnrichmentData(),
-      sessionStartTs: ALERT_TS,
-      phaseStartTs: ALERT_TS,
-    };
-
-    const filtered = _test.postFilter(state);
+    const filtered = postFilter(extractions, "test-regression");
 
     // Run vote on filtered
-    const voteState = { ...state, extractions: filtered.extractions! };
-    const voted = _test.vote(voteState);
+    const voted = vote(filtered, "test-regression");
 
     // THE KEY ASSERTION: if we get a result, it should NOT be Lebanon
-    if (voted.votedResult) {
-      const origins = voted.votedResult.country_origins;
+    if (voted) {
+      const origins = voted.country_origins;
       if (origins && origins.length > 0) {
         const hasLebanon = origins.some((o) => o.name === "Lebanon");
         const hasIran = origins.some((o) => o.name === "Iran");

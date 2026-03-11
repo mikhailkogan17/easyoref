@@ -132,6 +132,7 @@ export async function clearSession(): Promise<void> {
     "session:posts",
     "session:enrichment",
     EXT_CACHE_KEY,
+    LAST_UPDATE_KEY,
   );
 }
 
@@ -180,6 +181,21 @@ export async function getEnrichmentData(): Promise<EnrichmentData> {
   const redis = getRedis();
   const raw = await redis.get("session:enrichment");
   return raw ? (JSON.parse(raw) as EnrichmentData) : emptyEnrichmentData();
+}
+
+// ── Last update timestamp (tracks when last enrichment job ran) ──
+
+const LAST_UPDATE_KEY = "session:last_update_ts";
+
+export async function getLastUpdateTs(): Promise<number> {
+  const redis = getRedis();
+  const raw = await redis.get(LAST_UPDATE_KEY);
+  return raw ? Number(raw) : 0;
+}
+
+export async function setLastUpdateTs(ts: number): Promise<void> {
+  const redis = getRedis();
+  await redis.setex(LAST_UPDATE_KEY, SESSION_TTL_S, String(ts));
 }
 
 // ── Extraction cache (post-level dedup between jobs) ───
