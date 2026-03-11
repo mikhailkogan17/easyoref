@@ -107,6 +107,12 @@ export function vote(
   const rocket_citations = rocketSrcs.map((e) => e.idx);
   const rocket_confidence = fieldConf(rocketSrcs);
 
+  // Rocket detail: pick from highest-confidence source with a detail string
+  const detailSrcs = indexed
+    .filter((e) => e.rocket_detail)
+    .sort((a, b) => b.confidence - a.confidence);
+  const rocket_detail = detailSrcs[0]?.rocket_detail ?? null;
+
   // Cassette: majority
   const cassSrcs = indexed.filter((e) => e.is_cassette !== null);
   const cassVals = cassSrcs.map((e) => e.is_cassette as boolean);
@@ -177,17 +183,25 @@ export function vote(
   );
 
   // Hits
-  const hitsSrcs = indexed.filter(
-    (e) => e.hits_confirmed !== null && e.hits_confirmed > 0,
-  );
-  const hitsVals = indexed
-    .filter((e) => e.hits_confirmed !== null)
+  const allHitsSrcs = indexed.filter((e) => e.hits_confirmed !== null);
+  const hitsVals = allHitsSrcs
     .map((e) => e.hits_confirmed as number)
     .sort((a, b) => a - b);
   const hits_confirmed =
     hitsVals.length > 0 ? hitsVals[Math.floor(hitsVals.length / 2)] : null;
-  const hits_citations = hitsSrcs.map((e) => e.idx);
-  const hits_confidence = fieldConf(hitsSrcs);
+  const hitsSrcs = allHitsSrcs.filter((e) => (e.hits_confirmed as number) > 0);
+  const hits_citations =
+    hitsSrcs.length > 0
+      ? hitsSrcs.map((e) => e.idx)
+      : allHitsSrcs.map((e) => e.idx);
+  const hits_confidence = fieldConf(allHitsSrcs);
+
+  // No impacts: explicit confirmation from sources
+  const noImpactSrcs = allHitsSrcs.filter(
+    (e) => (e.hits_confirmed as number) === 0,
+  );
+  const no_impacts = noImpactSrcs.length > 0 && hits_confirmed === 0;
+  const no_impacts_citations = noImpactSrcs.map((e) => e.idx);
 
   // Casualties
   const casualtySrcs = indexed.filter(
@@ -232,6 +246,7 @@ export function vote(
     rocket_count_max,
     rocket_citations,
     rocket_confidence,
+    rocket_detail,
     is_cassette,
     is_cassette_confidence,
     intercepted,
@@ -249,6 +264,9 @@ export function vote(
     hits_confirmed,
     hits_citations,
     hits_confidence,
+    no_impacts,
+    no_impacts_citations,
+    intercepted_citations: interceptedSrcs.map((e) => e.idx),
     casualties,
     casualties_citations,
     casualties_confidence,

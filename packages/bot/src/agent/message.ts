@@ -73,6 +73,49 @@ export function inlineCitesFromData(cites: InlineCite[]): string {
   );
 }
 
+/**
+ * Build a global URL→index map across ALL enrichment fields.
+ * Deduplicates by URL so the same source gets the same [N] everywhere.
+ */
+export function buildGlobalCiteMap(
+  enrichment: EnrichmentData,
+): Map<string, number> {
+  const allCites: InlineCite[] = [
+    ...enrichment.originCites,
+    ...enrichment.etaCites,
+    ...enrichment.rocketCites,
+    ...enrichment.interceptedCites,
+    ...enrichment.hitsCites,
+    ...enrichment.noImpactsCites,
+    ...enrichment.casualtiesCites,
+    ...enrichment.injuriesCites,
+  ];
+  const map = new Map<string, number>();
+  let idx = 1;
+  for (const cite of allCites) {
+    if (!map.has(cite.url)) {
+      map.set(cite.url, idx++);
+    }
+  }
+  return map;
+}
+
+/** Format inline citations using global numbering */
+export function renderCitesGlobal(
+  cites: InlineCite[],
+  globalMap: Map<string, number>,
+): string {
+  if (cites.length === 0) return "";
+  const parts: string[] = [];
+  for (const c of cites) {
+    const i = globalMap.get(c.url);
+    if (i !== undefined) {
+      parts.push(`<a href="${c.url}">[${i}]</a>`);
+    }
+  }
+  return parts.length > 0 ? " " + parts.join(", ") : "";
+}
+
 // ── Confidence thresholds ──────────────────────────────
 
 export const SKIP = 0.6;
@@ -161,12 +204,7 @@ export function buildEnrichmentFromVote(
     const u = r.intercepted_confidence < UNCERTAIN ? " (?)" : "";
     data.intercepted = `${r.intercepted}${u}`;
     data.interceptedCites = extractCites(
-      r.citedSources
-        .filter((s) => {
-          const ext = r.citedSources.find((cs) => cs.index === s.index);
-          return ext !== undefined;
-        })
-        .map((s) => s.index),
+      r.intercepted_citations,
       r.citedSources,
     );
   } else if (r.intercepted_qual !== null && r.intercepted_confidence >= SKIP) {
@@ -187,6 +225,17 @@ export function buildEnrichmentFromVote(
     const u = r.hits_confidence < UNCERTAIN ? " (?)" : "";
     data.hitsConfirmed = `${r.hits_confirmed}${u}`;
     data.hitsCites = extractCites(r.hits_citations, r.citedSources);
+  }
+
+  // No impacts: sources explicitly confirm zero hits
+  if (r.no_impacts && r.hits_confidence >= SKIP) {
+    data.noImpacts = true;
+    data.noImpactsCites = extractCites(r.no_impacts_citations, r.citedSources);
+  }
+
+  // Rocket detail (per-region breakdown)
+  if (r.rocket_detail) {
+    data.rocketDetail = r.rocket_detail;
   }
 
   // Casualties
@@ -229,12 +278,15 @@ export function buildEnrichedMessage(
 ): string {
   let text = currentText;
 
+  // ── Global citation map ──
+  const citeMap = buildGlobalCiteMap(enrichment);
+
   // ── Refine ETA in-place ──
   if (
     enrichment.etaAbsolute &&
     (alertType === "early_warning" || alertType === "siren")
   ) {
-    const etaCiteStr = inlineCitesFromData(enrichment.etaCites);
+    const etaCiteStr = renderCitesGlobal(enrichment.etaCites, citeMap);
     const refined = `${enrichment.etaAbsolute}${etaCiteStr}`;
 
     const etaPatterns = [
@@ -266,7 +318,7 @@ export function buildEnrichedMessage(
 
   // ── Origin ──
   if (enrichment.origin) {
-    const citeStr = inlineCitesFromData(enrichment.originCites);
+    const citeStr = renderCitesGlobal(enrichment.originCites, citeMap);
     text = insertBeforeTimeLine(
       text,
       `\n<b>Откуда:</b> ${enrichment.origin}${citeStr}`,
@@ -275,7 +327,7 @@ export function buildEnrichedMessage(
 
   // ── Rocket count + breakdown ──
   if (enrichment.rocketCount) {
-    const citeStr = inlineCitesFromData(enrichment.rocketCites);
+    const citeStr = renderCitesGlobal(enrichment.rocketCites, citeMap);
     const cassette = enrichment.isCassette ? ", есть кассетные" : "";
 
     let breakdown = "";
@@ -291,12 +343,16 @@ export function buildEnrichedMessage(
     }
     if (bParts.length > 0) breakdown = `, из них: ${bParts.join(", ")}`;
 
+    const detail = enrichment.rocketDetail
+      ? ` (${enrichment.rocketDetail})`
+      : "";
+
     text = insertBeforeTimeLine(
       text,
-      `<b>Ракет:</b> ${enrichment.rocketCount}${breakdown}${cassette}${citeStr}`,
+      `<b>Ракет:</b> ${enrichment.rocketCount}${detail}${breakdown}${cassette}${citeStr}`,
     );
   } else if (enrichment.intercepted && alertType !== "early_warning") {
-    const citeStr = inlineCitesFromData(enrichment.interceptedCites);
+    const citeStr = renderCitesGlobal(enrichment.interceptedCites, citeMap);
     text = insertBeforeTimeLine(
       text,
       `<b>Перехвачено:</b> ${enrichment.intercepted}${citeStr}`,
@@ -306,23 +362,26 @@ export function buildEnrichedMessage(
   // ── Hits ──
   if (enrichment.hitsConfirmed && alertType !== "early_warning") {
     const areaLabel = Object.values(config.agent.areaLabels)[0] ?? "район";
-    const citeStr = inlineCitesFromData(enrichment.hitsCites);
+    const citeStr = renderCitesGlobal(enrichment.hitsCites, citeMap);
     text = insertBeforeTimeLine(
       text,
       `<b>Попадания (${areaLabel}):</b> ${enrichment.hitsConfirmed}${citeStr}`,
     );
+  } else if (enrichment.noImpacts && alertType !== "early_warning") {
+    const citeStr = renderCitesGlobal(enrichment.noImpactsCites, citeMap);
+    text = insertBeforeTimeLine(text, `<b>Прилетов:</b> нет${citeStr}`);
   }
 
   // ── Casualties / Injuries (resolved only) ──
   if (enrichment.casualties && alertType === "resolved") {
-    const citeStr = inlineCitesFromData(enrichment.casualtiesCites);
+    const citeStr = renderCitesGlobal(enrichment.casualtiesCites, citeMap);
     text = insertBeforeTimeLine(
       text,
       `<b>Погибшие:</b> ${enrichment.casualties}${citeStr}`,
     );
   }
   if (enrichment.injuries && alertType === "resolved") {
-    const citeStr = inlineCitesFromData(enrichment.injuriesCites);
+    const citeStr = renderCitesGlobal(enrichment.injuriesCites, citeMap);
     text = insertBeforeTimeLine(
       text,
       `<b>Пострадавшие:</b> ${enrichment.injuries}${citeStr}`,

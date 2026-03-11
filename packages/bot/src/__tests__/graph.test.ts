@@ -73,12 +73,14 @@ import { textHash, toIsraelTime } from "../agent/helpers.js";
 import {
   buildEnrichedMessage,
   buildEnrichmentFromVote,
+  buildGlobalCiteMap,
   CERTAIN,
   COUNTRY_RU,
   extractCites,
   inlineCites,
   inlineCitesFromData,
   insertBeforeTimeLine,
+  renderCitesGlobal,
   SKIP,
   UNCERTAIN,
 } from "../agent/message.js";
@@ -141,6 +143,7 @@ describe("postFilter", () => {
       casualties: null,
       injuries: null,
       eta_refined_minutes: null,
+      rocket_detail: null,
       confidence: 0.7,
       valid: true,
       ...overrides,
@@ -249,6 +252,7 @@ describe("vote", () => {
       casualties: null,
       injuries: null,
       eta_refined_minutes: null,
+      rocket_detail: null,
       confidence: 0.8,
       valid: true,
       messageUrl: "https://t.me/test/1",
@@ -373,6 +377,45 @@ describe("inlineCitesFromData", () => {
   });
 });
 
+// ─── buildGlobalCiteMap + renderCitesGlobal ────────────
+
+describe("buildGlobalCiteMap", () => {
+  it("assigns unique sequential indices by URL", () => {
+    const data = emptyEnrichmentData();
+    data.originCites = [{ url: "https://t.me/a/1", channel: "@a" }];
+    data.rocketCites = [
+      { url: "https://t.me/a/1", channel: "@a" },
+      { url: "https://t.me/b/2", channel: "@b" },
+    ];
+    const map = buildGlobalCiteMap(data);
+    expect(map.get("https://t.me/a/1")).toBe(1);
+    expect(map.get("https://t.me/b/2")).toBe(2);
+    expect(map.size).toBe(2);
+  });
+
+  it("returns empty map for empty enrichment", () => {
+    const map = buildGlobalCiteMap(emptyEnrichmentData());
+    expect(map.size).toBe(0);
+  });
+});
+
+describe("renderCitesGlobal", () => {
+  it("renders citations with global indices", () => {
+    const globalMap = new Map([
+      ["https://t.me/a/1", 1],
+      ["https://t.me/b/2", 3],
+    ]);
+    const cites: InlineCite[] = [{ url: "https://t.me/b/2", channel: "@b" }];
+    const result = renderCitesGlobal(cites, globalMap);
+    expect(result).toBe(' <a href="https://t.me/b/2">[3]</a>');
+  });
+
+  it("returns empty for empty cites", () => {
+    const map = new Map([["https://t.me/a/1", 1]]);
+    expect(renderCitesGlobal([], map)).toBe("");
+  });
+});
+
 // ─── extractCites ──────────────────────────────────────
 
 describe("extractCites", () => {
@@ -425,6 +468,10 @@ describe("buildEnrichmentFromVote", () => {
       hits_confirmed: 1,
       hits_citations: [2],
       hits_confidence: 0.7,
+      no_impacts: false,
+      no_impacts_citations: [],
+      intercepted_citations: [1],
+      rocket_detail: null,
       casualties: null,
       casualties_citations: [],
       casualties_confidence: 0,
