@@ -364,6 +364,7 @@ export async function runClarify(input: ClarifyInput): Promise<ClarifyOutput> {
         casualties: findings.new_data.casualties ?? null,
         injuries: findings.new_data.injuries ?? null,
         eta_refined_minutes: null,
+        rocket_detail: null,
         confidence: Math.min(
           0.9,
           (input.votedResult.confidence ?? 0.5) +

@@ -79,6 +79,8 @@ export interface ExtractionResult {
   casualties: number | null;
   injuries: number | null;
   eta_refined_minutes: number | null;
+  /** Verbatim per-region rocket breakdown (e.g. "2 center, 3 north") */
+  rocket_detail: string | null;
   /** V3: tone — "calm"|"neutral"|"alarmist" */
   tone: "calm" | "neutral" | "alarmist";
   /** Overall extraction confidence (0-1) */
@@ -128,6 +130,8 @@ export interface VotedResult {
   rocket_citations: number[];
   /** Avg weighted confidence of sources reporting rocket count (for uncertainty marker) */
   rocket_confidence: number;
+  /** Verbatim per-region rocket breakdown if sources split by region */
+  rocket_detail: string | null;
 
   is_cassette: boolean | null;
   /** Avg weighted confidence of sources confirming cassette munitions */
@@ -153,6 +157,11 @@ export interface VotedResult {
   hits_citations: number[];
   /** Avg weighted confidence of sources reporting confirmed hits */
   hits_confidence: number;
+  /** Sources explicitly confirm NO impacts ("прилетов нет") */
+  no_impacts: boolean;
+  no_impacts_citations: number[];
+  /** Citation indices for intercepted data */
+  intercepted_citations: number[];
 
   casualties: number | null;
   casualties_citations: number[];
@@ -203,6 +212,11 @@ export interface EnrichmentData {
   /** Confirmed hits on structures */
   hitsConfirmed: string | null;
   hitsCites: InlineCite[];
+  /** Explicitly confirmed no impacts */
+  noImpacts: boolean;
+  noImpactsCites: InlineCite[];
+  /** Verbatim per-region rocket breakdown */
+  rocketDetail: string | null;
   /** Casualties / injuries (from resolved) */
   casualties: string | null;
   casualtiesCites: InlineCite[];
@@ -230,6 +244,9 @@ export function emptyEnrichmentData(): EnrichmentData {
     openAreaImpact: null,
     hitsConfirmed: null,
     hitsCites: [],
+    noImpacts: false,
+    noImpactsCites: [],
+    rocketDetail: null,
     casualties: null,
     casualtiesCites: [],
     injuries: null,
