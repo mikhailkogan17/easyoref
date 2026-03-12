@@ -1,4 +1,6 @@
-# EasyOref
+<p align="center">
+  <img src="assets/hero.png" alt="EasyOref" width="100%">
+</p>
 
 Оповещения о ракетных атаках в Израиле — в вашем чате в Telegram.
 

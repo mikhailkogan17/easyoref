@@ -1,4 +1,6 @@
-# EasyOref
+<p align="center">
+  <img src="docs/assets/hero.png" alt="EasyOref" width="100%">
+</p>
 
 Israeli civil defense alerts → your family's Telegram chat.
 
@@ -6,7 +8,7 @@ Israeli civil defense alerts → your family's Telegram chat.
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![npm](https://img.shields.io/badge/npm-easyoref-CB3837?logo=npm)](https://www.npmjs.com/package/easyoref)
 
-[Русский](docs/readme_ru.md) · [עברית](docs/readme_he.md)
+ [עברית](docs/readme_he.md) · [Русский](docs/readme_ru.md)
 
 > [!CAUTION]
 > EasyOref **does not replace** official Home Front Command alerts.

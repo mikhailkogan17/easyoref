@@ -1,4 +1,6 @@
-# EasyOref
+<p align="center">
+  <img src="assets/hero.png" alt="EasyOref" width="100%">
+</p>
 
 התרעות פיקוד העורף → צ׳אט המשפחה בטלגרם.
 
