@@ -1,5 +1,18 @@
 # easyoref
 
+## 1.17.1
+
+### Patch Changes
+
+- fix: dedup enrichment, preserve enriched text, enforce UI language, time in title
+
+  - Fix duplicate enrichment lines by adding `baseText` to session (always rebuild from pristine message)
+  - Fix ⏳ removal wiping enrichment data (update session.currentText after Telegram edits)
+  - Enforce UI language in extraction prompt (no more Hebrew text in Russian output)
+  - Move alert time from blockquote to title: `<b>emoji Title</b> (HH:mm)`
+  - Add hit_location/hit_type through extract→vote→message pipeline
+  - Rename insertBeforeTimeLine→insertBeforeBlockEnd
+
 ## 1.17.0
 
 ### Minor Changes
