@@ -2,7 +2,7 @@
   <img src="docs/assets/hero.png" alt="EasyOref" width="100%">
 </p>
 
-Israeli civil defense alerts → your family's Telegram chat.
+Smart Home Front Command notification — for your friends & family
 
 [![CI](https://github.com/mikhailkogan17/EasyOref/actions/workflows/ci.yml/badge.svg)](https://github.com/mikhailkogan17/EasyOref/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -12,7 +12,7 @@ Israeli civil defense alerts → your family's Telegram chat.
 
 > [!CAUTION]
 > EasyOref **does not replace** official Home Front Command alerts.
-> It **supplements** them — notifying your family abroad.
+> It **supplements** them — keeping your contacts informed.
 > Always follow Home Front Command instructions!
 
 ## Why
@@ -69,7 +69,7 @@ sudo apt install -y nodejs
 ### 2. Set up Telegram
 
 1. Message [@BotFather](https://t.me/BotFather) → `/newbot` → copy the **token**
-2. Add the bot to your family group chat
+2. Add the bot to your Telegram chat or channel
 3. Forward any message from that chat to [@userinfobot](https://t.me/userinfobot) → copy the **chat ID**
 
 ### 3. Find your city ID

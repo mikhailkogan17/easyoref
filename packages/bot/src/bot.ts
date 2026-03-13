@@ -8,7 +8,7 @@
  *   1. Poll oref.org.il every 2 seconds for active alerts
  *   2. Match areas against configured regions (Hebrew names)
  *   3. Classify alert type: early warning / siren / incident over
- *   4. If relevant → send calm message to family Telegram chat
+ *   4. If relevant → send calm message to configured Telegram chat
  *
  * No LLM needed — purely deterministic matching for <1s latency.
  */
