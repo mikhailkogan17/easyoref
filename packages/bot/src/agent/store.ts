@@ -34,14 +34,14 @@ export const PHASE_TIMEOUT_MS: Record<AlertType, number> = {
 export const PHASE_ENRICH_DELAY_MS: Record<AlertType, number> = {
   early_warning: 60_000, // 60s — channels need time to post; saves tokens
   siren: 45_000, // 45s
-  resolved: 180_000, // 180s — detailed intel comes slower
+  resolved: 150_000, // 150s (2.5 min) — per user requirement: 10 min window, update every 2.5 min
 };
 
 /** Initial enrichment delay — first job after alert (channels need time to post) */
 export const PHASE_INITIAL_DELAY_MS: Record<AlertType, number> = {
   early_warning: 120_000, // 2 min — wait for launch reports
   siren: 15_000, // 15s
-  resolved: 60_000, // 60s
+  resolved: 90_000, // 90s — wait for first wave of post-incident reports
 };
 
 // ── Types ──────────────────────────────────────────────
