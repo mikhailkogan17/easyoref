@@ -266,22 +266,33 @@ export function buildEnrichmentFromVote(
     data.hitDetail = r.hit_detail;
   }
 
-  // Casualties
+  // Casualties — CRITICAL: only report at near-certain confidence
+  // Requires explicit mention of killed/dead in source (נהרג/מת/killed/dead/убит/погиб)
   if (
     r.casualties !== null &&
     r.casualties > 0 &&
-    r.casualties_confidence >= SKIP
+    r.casualties_confidence >= CERTAIN  // 0.95 — never show unconfirmed deaths
   ) {
-    const u = r.casualties_confidence < UNCERTAIN ? " (?)" : "";
-    data.casualties = `${r.casualties}${u}`;
+    // No uncertainty marker for deaths — either confirmed or not shown
+    data.casualties = `${r.casualties}`;
     data.casualtiesCites = extractCites(r.casualties_citations, r.citedSources);
   }
 
-  // Injuries
-  if (r.injuries !== null && r.injuries > 0 && r.injuries_confidence >= SKIP) {
-    const u = r.injuries_confidence < UNCERTAIN ? " (?)" : "";
+  // Injuries — show only if confidence >= UNCERTAIN (not SKIP)
+  // Retractions: if new vote has injuries=0 and confidence >= UNCERTAIN, clear previous data
+  if (r.injuries !== null && r.injuries > 0 && r.injuries_confidence >= UNCERTAIN) {
+    const u = r.injuries_confidence < CERTAIN ? " (?)" : "";
     data.injuries = `${r.injuries}${u}`;
     data.injuriesCites = extractCites(r.injuries_citations, r.citedSources);
+  } else if (
+    r.injuries !== null &&
+    r.injuries === 0 &&
+    r.injuries_confidence >= UNCERTAIN &&
+    prev.injuries
+  ) {
+    // Explicit retraction: source says "no injured" — clear previous report
+    data.injuries = null;
+    data.injuriesCites = [];
   }
 
   // Early warning time

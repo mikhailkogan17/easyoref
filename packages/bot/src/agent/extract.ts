@@ -218,6 +218,21 @@ Rules:
 - *_qual fields: use ONLY when NO exact count is given. If exact number present, set *_qual=null.
 - "none" qual is only valid if explicitly stated (e.g., "все перехвачены", "не упало в море").
 - For IDF (@idf_telegram) posts about ongoing operations (not this specific attack) → time_relevance=0.
+- CASUALTIES — HIGHEST THRESHOLD: Only set casualties > 0 if the source text EXPLICITLY uses words
+  meaning "killed", "dead", "died", "fatality" (Hebrew: נהרג/מת/קטל; Russian: погиб/убит/смерть;
+  English: killed/dead/died/fatality). NEVER infer deaths from "serious injury", "critical condition",
+  or "suspected". If you are not 100% certain the word is in the source, set casualties=null.
+  confidence for casualties MUST be >= 0.95 or set to null.
+- INJURY RETRACTIONS: If a source explicitly states "no injured", "false report of injury",
+  "ложное сообщение о раненом", "אין פצועים", set injuries=0 with high confidence (>= 0.8).
+  This overrides earlier injury reports.
+- GEO-RELEVANCE FOR HITS: hits_confirmed, hit_location, hit_detail and hit_type must refer to
+  the CONFIGURED ALERT ZONE only. If the source describes damage/debris in a DIFFERENT city
+  or area (e.g., Rishon LeZion when the zone is Tel Aviv South), set hit_location to that city
+  name with a note, set region_relevance proportionally lower, and describe the actual location
+  in hit_detail. Do NOT report hits as "confirmed" in the alert zone if the source says a
+  different city. If the damage is in a nearby but different city (~10-30km), report it in
+  hit_detail as "<city> (~Xкм)".
 - LANGUAGE NEUTRALITY: Posts may be in Hebrew, Russian, Arabic, or English. The language of the post
   MUST NOT affect source_trust or confidence. Russian-language Israeli channels are equally reliable
   and often break news faster than Hebrew ones. Judge ONLY by factual content and tone.
