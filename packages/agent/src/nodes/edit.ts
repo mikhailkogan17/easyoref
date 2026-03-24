@@ -5,13 +5,13 @@
 import {
   EnrichmentDataSchema,
 } from "@easyoref/shared";
-import { editMessage } from "./message.js";
+import { editTelegramMessage } from "./message.js";
 import type { AgentStateType } from "../graph.js";
 
 export const editNode = async (
   state: AgentStateType,
 ): Promise<Partial<AgentStateType>> => {
-  await editMessage({
+  await editTelegramMessage({
     alertId: state.alertId,
     alertTs: state.alertTs,
     alertType: state.alertType,

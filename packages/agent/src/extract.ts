@@ -78,17 +78,17 @@ export async function filterChannelsCheap(
 
   const channelSummaries = channels
     .map(
-      (ch: {
+      (channel: {
         channel: string;
         last_tracked_messages: Array<{ timestamp: number; text: string }>;
       }) => {
-        const messages = ch.last_tracked_messages
+        const messages = channel.last_tracked_messages
           .map(
-            (m: { timestamp: number; text: string }) =>
-              `  [${toIsraelTime(m.timestamp)}] ${m.text.slice(0, 200)}`,
+            (message: { timestamp: number; text: string }) =>
+              `  [${toIsraelTime(message.timestamp)}] ${message.text.slice(0, 200)}`,
           )
           .join("\n");
-         return `${ch.channel} (${ch.last_tracked_messages.length} new):\n${messages}`;
+         return `${channel.channel} (${channel.last_tracked_messages.length} new):\n${messages}`;
       },
     )
     .join("\n\n");
