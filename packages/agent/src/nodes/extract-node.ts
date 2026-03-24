@@ -19,30 +19,9 @@ import {
   toIsraelTime,
 } from "@easyoref/shared";
 import { createAgent, providerStrategy } from "langchain";
-import { ChatOpenRouter } from "@langchain/openrouter";
 import type { AgentStateType } from "../graph.js";
-
-const extractModel = new ChatOpenRouter({
-  apiKey: config.agent.apiKey,
-  model: config.agent.extractModel,
-  temperature: 0,
-  maxTokens: 500,
-});
-
-const filterModel = new ChatOpenRouter({
-  apiKey: config.agent.apiKey,
-  model: config.agent.filterModel,
-  temperature: 0,
-  maxTokens: 200,
-});
-
-export const filterAgent = createAgent({
-  model: filterModel,
-  responseFormat: providerStrategy(FilterOutputSchema),
-  systemPrompt: `You pre-filter Telegram channels for an Israeli missile alert system.
-Given channels with their latest messages, identify which contain IMPORTANT military intel.
-Return relevant channel names.`,
-});
+import { extractModel } from "../models.js";
+import { filterAgent } from "./filter-node.js";
 
 export const extractAgent = createAgent({
   model: extractModel,

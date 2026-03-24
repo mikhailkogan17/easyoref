@@ -10,20 +10,13 @@ import {
   type ChannelPost,
   type ValidatedExtraction,
 } from "@easyoref/shared";
-import { ChatOpenRouter } from "@langchain/openrouter";
 import { createAgent, toolStrategy } from "langchain";
 import type { AgentStateType } from "../graph.js";
+import { filterModel } from "../models.js";
 import { clarifyTools } from "../tools/index.js";
 
-const clarifyModel = new ChatOpenRouter({
-  apiKey: config.agent.apiKey,
-  model: config.agent.filterModel,
-  temperature: 0,
-  maxTokens: 600,
-});
-
-const clarifyAgent = createAgent({
-  model: clarifyModel,
+export const clarifyAgent = createAgent({
+  model: filterModel,
   tools: clarifyTools,
   responseFormat: toolStrategy(ClarifyOutputSchema),
   systemPrompt: `

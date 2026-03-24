@@ -22,8 +22,8 @@ import {
 } from "@easyoref/shared";
 import { Worker } from "bullmq";
 import { Bot } from "grammy";
-import { runEnrichment } from "./graph.js";
-import { MONITORING_RE, stripMonitoring } from "./nodes/message-node.js";
+import { runEnrichment } from "../graph.js";
+import { MONITORING_RE, stripMonitoring } from "../nodes/message-node.js";
 import { enqueueEnrich, type EnrichJobData } from "./queue.js";
 
 let _worker: Worker | undefined = undefined;

@@ -4,7 +4,6 @@
 
 import * as logger from "@easyoref/monitoring";
 import {
-  FilterOutputSchema,
   type ChannelPost,
   type ChannelTracking,
   type ChannelWithUpdates,
@@ -17,22 +16,12 @@ import {
   getEnrichmentData,
   getLastUpdateTs,
 } from "@easyoref/shared";
-import { createAgent, providerStrategy } from "langchain";
-import { ChatOpenRouter } from "@langchain/openrouter";
 import type { AgentStateType } from "../graph.js";
+import { createAgent, providerStrategy } from "langchain";
+import { filterModel } from "../models.js";
+import { FilterOutputSchema } from "@easyoref/shared";
 
-const OREF_LINK_PATTERN = /oref\.org\.il/i;
-const OREF_CHANNEL_PATTERN = /pikud|פיקוד|oref/i;
-const IDF_CHANNEL_PATTERN = /idf|צה"?ל|tsahal/i;
-
-const filterModel = new ChatOpenRouter({
-  apiKey: config.agent.apiKey,
-  model: config.agent.filterModel,
-  temperature: 0,
-  maxTokens: 200,
-});
-
-const filterAgent = createAgent({
+export const filterAgent = createAgent({
   model: filterModel,
   responseFormat: providerStrategy(FilterOutputSchema),
   systemPrompt: `You pre-filter Telegram channels for an Israeli missile alert system.
@@ -51,6 +40,10 @@ IGNORE channels that only contain:
 
 Return relevant channel names.`,
 });
+
+const OREF_LINK_PATTERN = /oref\.org\.il/i;
+const OREF_CHANNEL_PATTERN = /pikud|פיקוד|oref/i;
+const IDF_CHANNEL_PATTERN = /idf|צה"?ל|tsahal/i;
 
 function isNoise(post: ChannelPost): boolean {
   if (OREF_CHANNEL_PATTERN.test(post.channel) && post.text.length > 300) return true;

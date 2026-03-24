@@ -491,7 +491,9 @@ export interface EditMessageInput {
 /**
  * Edit the Telegram message with enriched data.
  */
-export const editTelegramMessage = async (input: EditMessageInput): Promise<void> => {
+export const editTelegramMessage = async (
+  input: EditMessageInput,
+): Promise<void> => {
   if (!config.botToken) return;
 
   const tgBot = new Bot(config.botToken);
@@ -639,7 +641,7 @@ export const editTelegramMessage = async (input: EditMessageInput): Promise<void
     sources: input.votedResult.sources_count,
     phase: input.alertType,
   });
-}
+};
 
 export const editMessage = editTelegramMessage;
 
@@ -664,5 +666,3 @@ export const editNode = async (
   });
   return {};
 };
-
-

@@ -737,16 +737,14 @@ describe("betterstackLogTool", () => {
     globalThis.fetch = vi.fn().mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        data: [
+        results: [
           {
-            dt: "2024-01-15T10:30:00Z",
+            timestamp: "2024-01-15T10:30:00Z",
             message: "Alert processed",
-            level: "info",
           },
           {
-            dt: "2024-01-15T10:29:00Z",
+            timestamp: "2024-01-15T10:29:00Z",
             message: "Enrichment started",
-            level: "info",
           },
         ],
       }),
@@ -754,28 +752,28 @@ describe("betterstackLogTool", () => {
 
     const result = await betterstackLogTool.invoke({
       query: "enrichment",
-      last_minutes: 15,
+      lastMinutes: 15,
     });
     const parsed = JSON.parse(result);
-    expect(parsed.events).toHaveLength(2);
-    expect(parsed.events[0].message).toBe("Alert processed");
-    expect(parsed.total).toBe(2);
+    expect(parsed.logs).toHaveLength(2);
+    expect(parsed.logs[0].message).toBe("Alert processed");
+    expect(parsed.count).toBe(2);
     expect(parsed.query).toBe("enrichment");
   });
 
   it("returns empty when no matching logs", async () => {
     globalThis.fetch = vi.fn().mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ data: [] }),
+      json: async () => ({ results: [] }),
     });
 
     const result = await betterstackLogTool.invoke({
       query: "nonexistent",
-      last_minutes: 5,
+      lastMinutes: 5,
     });
     const parsed = JSON.parse(result);
-    expect(parsed.events).toHaveLength(0);
-    expect(parsed.total).toBe(0);
+    expect(parsed.logs).toHaveLength(0);
+    expect(parsed.count).toBe(0);
   });
 
   it("handles HTTP error", async () => {
@@ -787,11 +785,11 @@ describe("betterstackLogTool", () => {
 
     const result = await betterstackLogTool.invoke({
       query: "test",
-      last_minutes: 10,
+      lastMinutes: 10,
     });
     const parsed = JSON.parse(result);
-    expect(parsed.error).toContain("401");
-    expect(parsed.retry).toBe(false); // 401 is not server error
+    expect(parsed.error).toContain("Invalid Better Stack credentials");
+    expect(parsed.hint).toBeDefined();
   });
 
   it("handles network failure", async () => {
@@ -799,7 +797,7 @@ describe("betterstackLogTool", () => {
 
     const result = await betterstackLogTool.invoke({
       query: "test",
-      last_minutes: 10,
+      lastMinutes: 10,
     });
     const parsed = JSON.parse(result);
     expect(parsed.error).toContain("ECONNREFUSED");
@@ -821,7 +819,7 @@ describe("betterstackLogTool", () => {
     const toolsMod = await import("../src/tools/index.js");
     const result = await toolsMod.betterstackLogTool.invoke({
       query: "test",
-      last_minutes: 10,
+      lastMinutes: 10,
     });
     const parsed = JSON.parse(result);
     expect(parsed.error).toContain("Better Stack token not configured");
