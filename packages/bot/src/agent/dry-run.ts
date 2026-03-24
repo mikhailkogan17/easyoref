@@ -35,8 +35,8 @@ const MOCK_EXTRACTIONS = [
     country_origin: "Iran",
     rocket_count: 6,
     is_cassette: false,
-    hits_confirmed: null,
-    hit_detail: null,
+    hits_confirmed: undefined,
+    hit_detail: undefined,
     eta_refined_minutes: 8,
     confidence: 0.88,
     valid: true,
@@ -50,8 +50,8 @@ const MOCK_EXTRACTIONS = [
     country_origin: "Lebanon",
     rocket_count: 7,
     is_cassette: true,
-    hits_confirmed: null,
-    hit_detail: null,
+    hits_confirmed: undefined,
+    hit_detail: undefined,
     eta_refined_minutes: 9,
     confidence: 0.75,
     valid: true,
@@ -64,10 +64,10 @@ const MOCK_EXTRACTIONS = [
     tone: "calm" as const,
     country_origin: "Iran",
     rocket_count: 5,
-    is_cassette: null,
+    is_cassette: undefined,
     hits_confirmed: 2,
     hit_detail: "на открытой местности",
-    eta_refined_minutes: null,
+    eta_refined_minutes: undefined,
     confidence: 0.82,
     valid: true,
   },
@@ -104,14 +104,14 @@ function vote(extractions: typeof MOCK_EXTRACTIONS) {
   const citedSources = indexed.map((e) => ({
     index: e.idx,
     channel: e.channel,
-    messageUrl: e.messageUrl ?? null,
+    messageUrl: e.messageUrl ?? undefined,
   }));
 
   // ETA: highest-confidence source
   const withEta = indexed
-    .filter((e) => e.eta_refined_minutes !== null)
+    .filter((e) => e.eta_refined_minutes !== undefined)
     .sort((a, b) => b.confidence - a.confidence);
-  const bestEta = withEta[0] ?? null;
+  const bestEta = withEta[0] ?? undefined;
 
   // Countries: group, collect citations
   const countryMap = new Map<string, number[]>();
@@ -128,37 +128,37 @@ function vote(extractions: typeof MOCK_EXTRACTIONS) {
           name,
           citations,
         }))
-      : null;
+      : undefined;
 
   // Rocket range
-  const rocketSrcs = indexed.filter((e) => e.rocket_count !== null);
+  const rocketSrcs = indexed.filter((e) => e.rocket_count !== undefined);
   const rocketVals = rocketSrcs.map((e) => e.rocket_count as number);
   const rocket_count_min =
-    rocketVals.length > 0 ? Math.min(...rocketVals) : null;
+    rocketVals.length > 0 ? Math.min(...rocketVals) : undefined;
   const rocket_count_max =
-    rocketVals.length > 0 ? Math.max(...rocketVals) : null;
+    rocketVals.length > 0 ? Math.max(...rocketVals) : undefined;
   const rocket_citations = rocketSrcs.map((e) => e.idx);
 
   // Cassette: majority
   const cassVals = indexed
-    .filter((e) => e.is_cassette !== null)
+    .filter((e) => e.is_cassette !== undefined)
     .map((e) => e.is_cassette as boolean);
   const is_cassette =
     cassVals.length > 0
       ? cassVals.filter(Boolean).length > cassVals.length / 2
-      : null;
+      : undefined;
 
   // Hits: median
   const hitsVals = indexed
-    .filter((e) => e.hits_confirmed !== null)
+    .filter((e) => e.hits_confirmed !== undefined)
     .map((e) => e.hits_confirmed as number)
     .sort((a, b) => a - b);
   const hits_confirmed =
-    hitsVals.length > 0 ? hitsVals[Math.floor(hitsVals.length / 2)] : null;
+    hitsVals.length > 0 ? hitsVals[Math.floor(hitsVals.length / 2)] : undefined;
 
   // Hits citations
   const hitsSrcs = indexed.filter(
-    (e) => e.hits_confirmed !== null && e.hits_confirmed > 0,
+    (e) => e.hits_confirmed !== undefined && e.hits_confirmed > 0,
   );
   const hits_citations = hitsSrcs.map((e) => e.idx);
 
@@ -169,7 +169,7 @@ function vote(extractions: typeof MOCK_EXTRACTIONS) {
   );
 
   return {
-    eta_refined_minutes: bestEta?.eta_refined_minutes ?? null,
+    eta_refined_minutes: bestEta?.eta_refined_minutes ?? undefined,
     eta_citations: bestEta ? [bestEta.idx] : [],
     country_origins,
     rocket_count_min,
@@ -191,7 +191,7 @@ function insertBeforeBlockEnd(text: string, line: string): string {
   }
   const timeLinePattern = /(<b>Время оповещения:<\/b>)/;
   const match = text.match(timeLinePattern);
-  if (match?.index !== undefined) {
+  if (match?.index) {
     return text.slice(0, match.index) + line + "\n" + text.slice(match.index);
   }
   const lines = text.split("\n");
@@ -231,7 +231,7 @@ function buildEnrichedMessage(
 ): string {
   let text = currentText;
 
-  if (r.eta_refined_minutes !== null && r.eta_citations.length > 0) {
+  if (r.eta_refined_minutes !== undefined && r.eta_citations.length > 0) {
     text = refineEtaInPlace(
       text,
       r.eta_refined_minutes,
@@ -249,7 +249,7 @@ function buildEnrichedMessage(
     text = insertBeforeBlockEnd(text, `\n<b>Откуда:</b> ${parts.join(" + ")}`);
   }
 
-  if (r.rocket_count_min !== null && r.rocket_count_max !== null) {
+  if (r.rocket_count_min !== undefined && r.rocket_count_max !== undefined) {
     const countStr =
       r.rocket_count_min === r.rocket_count_max
         ? `${r.rocket_count_min}`
@@ -258,7 +258,7 @@ function buildEnrichedMessage(
     text = insertBeforeBlockEnd(text, `<b>Ракет:</b> ${countStr}${cassette}`);
   }
 
-  if (r.hits_confirmed !== null && r.hits_confirmed > 0) {
+  if (r.hits_confirmed !== undefined && r.hits_confirmed > 0) {
     const hitsCite = r.hits_citations.length > 0 ? sup(r.hits_citations) : "";
     text = insertBeforeBlockEnd(
       text,
@@ -282,7 +282,7 @@ function buildEnrichedMessage(
 const voted = vote(MOCK_EXTRACTIONS);
 
 console.log("\n=== VOTE RESULT ===");
-console.log(JSON.stringify(voted, null, 2));
+console.log(JSON.stringify(voted, undefined, 2));
 
 const enriched = buildEnrichedMessage(BASE_MESSAGE, ALERT_TS, voted);
 

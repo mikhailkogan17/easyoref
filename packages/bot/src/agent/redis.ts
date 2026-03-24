@@ -7,7 +7,7 @@ import { Redis as IORedis } from "ioredis";
 import { config } from "../config.js";
 import * as logger from "../logger.js";
 
-let _redis: IORedis | null = null;
+let _redis: IORedis | undefined = undefined;
 
 export function getRedis(): IORedis {
   if (!_redis) {
@@ -33,6 +33,6 @@ export function getRedis(): IORedis {
 export async function closeRedis(): Promise<void> {
   if (_redis) {
     await _redis.quit();
-    _redis = null;
+    _redis = undefined;
   }
 }

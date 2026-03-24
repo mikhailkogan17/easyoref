@@ -11,12 +11,12 @@ import yaml from "js-yaml";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
+import type { AlertTypeConfig, GifMode } from "./agent/schemas.js";
 import { isValidLanguage, type Language } from "./i18n.js";
 
 // ── Types ────────────────────────────────────────────────
 
-export type AlertTypeConfig = "early" | "siren" | "resolved";
-export type GifMode = "funny_cats" | "none";
+export type { AlertTypeConfig, GifMode };
 
 const VALID_GIF_MODES: GifMode[] = ["funny_cats", "none"];
 

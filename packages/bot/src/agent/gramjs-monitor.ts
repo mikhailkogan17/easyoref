@@ -38,7 +38,7 @@ type TelegramClientOpts = {
   };
 };
 
-let _client: TelegramClient | null = null;
+let _client: TelegramClient | undefined = undefined;
 
 // ── Monitored channels (hardcoded) ────────────────────
 
@@ -349,7 +349,7 @@ async function handleNewMessage(event: NewMessageEvent): Promise<void> {
 export async function stopMonitor(): Promise<void> {
   if (_client) {
     await _client.disconnect();
-    _client = null;
+    _client = undefined;
     logger.info("GramJS: disconnected");
   }
 }

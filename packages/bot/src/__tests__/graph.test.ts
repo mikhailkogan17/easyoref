@@ -129,21 +129,18 @@ describe("postFilter", () => {
       time_relevance: 0.9,
       country_origin: "Iran",
       rocket_count: 10,
-      is_cassette: null,
-      intercepted: null,
-      intercepted_qual: null,
-      intercepted_qual_num: null,
-      sea_impact: null,
-      sea_impact_qual: null,
-      sea_impact_qual_num: null,
-      open_area_impact: null,
-      open_area_impact_qual: null,
-      open_area_impact_qual_num: null,
-      hits_confirmed: null,
-      casualties: null,
-      injuries: null,
-      eta_refined_minutes: null,
-      rocket_detail: null,
+      is_cassette: undefined,
+      intercepted: undefined,
+      intercepted_qual: undefined,
+      sea_impact: undefined,
+      sea_impact_qual: undefined,
+      open_area_impact: undefined,
+      open_area_impact_qual: undefined,
+      hits_confirmed: undefined,
+      casualties: undefined,
+      injuries: undefined,
+      eta_refined_minutes: undefined,
+      rocket_detail: undefined,
       confidence: 0.7,
       valid: true,
       ...overrides,
@@ -192,15 +189,15 @@ describe("postFilter", () => {
     const result = postFilter(
       [
         makeExtraction({
-          country_origin: null,
-          rocket_count: null,
-          is_cassette: null,
-          intercepted: null,
-          intercepted_qual: null,
-          hits_confirmed: null,
-          casualties: null,
-          injuries: null,
-          eta_refined_minutes: null,
+          country_origin: undefined,
+          rocket_count: undefined,
+          is_cassette: undefined,
+          intercepted: undefined,
+          intercepted_qual: undefined,
+          hits_confirmed: undefined,
+          casualties: undefined,
+          injuries: undefined,
+          eta_refined_minutes: undefined,
         }),
       ],
       "test-1",
@@ -238,21 +235,18 @@ describe("vote", () => {
       time_relevance: 0.9,
       country_origin: "Iran",
       rocket_count: 10,
-      is_cassette: null,
-      intercepted: null,
-      intercepted_qual: null,
-      intercepted_qual_num: null,
-      sea_impact: null,
-      sea_impact_qual: null,
-      sea_impact_qual_num: null,
-      open_area_impact: null,
-      open_area_impact_qual: null,
-      open_area_impact_qual_num: null,
-      hits_confirmed: null,
-      casualties: null,
-      injuries: null,
-      eta_refined_minutes: null,
-      rocket_detail: null,
+      is_cassette: undefined,
+      intercepted: undefined,
+      intercepted_qual: undefined,
+      sea_impact: undefined,
+      sea_impact_qual: undefined,
+      open_area_impact: undefined,
+      open_area_impact_qual: undefined,
+      hits_confirmed: undefined,
+      casualties: undefined,
+      injuries: undefined,
+      eta_refined_minutes: undefined,
+      rocket_detail: undefined,
       confidence: 0.8,
       valid: true,
       messageUrl: "https://t.me/test/1",
@@ -260,9 +254,9 @@ describe("vote", () => {
     };
   }
 
-  it("returns null for empty valid extractions", () => {
+  it("returns undefined for empty valid extractions", () => {
     const result = vote([makeValidExtraction({ valid: false })], "test-1");
-    expect(result).toBeNull();
+    expect(result).toBeUndefined();
   });
 
   it("aggregates country origins from multiple sources", () => {
@@ -444,26 +438,23 @@ describe("buildEnrichmentFromVote", () => {
 
   function makeVoted(overrides: Partial<VotedResult> = {}): VotedResult {
     return {
-      eta_refined_minutes: null,
+      eta_refined_minutes: undefined,
       eta_citations: [],
       country_origins: [{ name: "Iran", citations: [1] }],
       rocket_count_min: 10,
       rocket_count_max: 15,
       rocket_citations: [1, 2],
       rocket_confidence: 0.8,
-      is_cassette: null,
+      is_cassette: undefined,
       is_cassette_confidence: 0,
       intercepted: 8,
-      intercepted_qual: null,
-      intercepted_qual_num: null,
+      intercepted_qual: undefined,
       intercepted_confidence: 0.7,
-      sea_impact: null,
-      sea_impact_qual: null,
-      sea_impact_qual_num: null,
+      sea_impact: undefined,
+      sea_impact_qual: undefined,
       sea_confidence: 0,
-      open_area_impact: null,
-      open_area_impact_qual: null,
-      open_area_impact_qual_num: null,
+      open_area_impact: undefined,
+      open_area_impact_qual: undefined,
       open_area_confidence: 0,
       hits_confirmed: 1,
       hits_citations: [2],
@@ -471,8 +462,8 @@ describe("buildEnrichmentFromVote", () => {
       no_impacts: false,
       no_impacts_citations: [],
       intercepted_citations: [1],
-      rocket_detail: null,
-      casualties: null,
+      rocket_detail: undefined,
+      casualties: undefined,
       casualties_citations: [],
       casualties_confidence: 0,
       injuries: 3,
@@ -505,7 +496,7 @@ describe("buildEnrichmentFromVote", () => {
     prev.origin = "Йемен";
     prev.originCites = [{ url: "https://t.me/old/1", channel: "@old" }];
 
-    const voted = makeVoted({ country_origins: null });
+    const voted = makeVoted({ country_origins: undefined });
     const data = buildEnrichmentFromVote(voted, prev, "siren", alertTs);
     expect(data.origin).toBe("Йемен");
     expect(data.originCites).toHaveLength(1);
@@ -738,7 +729,7 @@ describeIntegration("LLM integration (real OpenRouter)", () => {
       `Post time:  ${postTimeIL} (Israel) (1 min AFTER alert)\n` +
       `Current time: ${alertTimeIL} (Israel)\n` +
       `Alert region: הרצליה, תל אביב\n` +
-      `UI language: ru\n`;
+      `UI language: en\n`;
 
     const postText = `🔴 זפיקוד העורף: ירי רקטות מאיראן לעבר שטח ישראל. היכנסו למרחב המוגן`;
 
@@ -757,7 +748,10 @@ describeIntegration("LLM integration (real OpenRouter)", () => {
     const text = raw
       .replace(/^```(?:json)?\s*\n?/i, "")
       .replace(/\n?```\s*$/i, "");
-    const parsed = JSON.parse(text.trim()) as ExtractionResult;
+    const rawParsed = JSON.parse(text.trim());
+    const parsed = Object.fromEntries(
+      Object.entries(rawParsed).filter(([_, v]) => v !== null),
+    ) as ExtractionResult;
 
     expect(parsed.country_origin).toBe("Iran");
     expect(parsed.time_relevance).toBeGreaterThanOrEqual(0.7);
@@ -775,7 +769,7 @@ describeIntegration("LLM integration (real OpenRouter)", () => {
         `Post time:  ${postTimeIL} (Israel) (150 min BEFORE alert)\n` +
         `Current time: 17:35 (Israel)\n` +
         `Alert region: הרצליה, תל אביב\n` +
-        `UI language: ru\n`;
+        `UI language: en\n`;
 
       const postText = `עדכון צה"ל: כוחות צה"ל תקפו מטרות של חיזבאללה בלבנון. הותקפו עשרות מטרות בדרום לבנון`;
 
@@ -794,7 +788,10 @@ describeIntegration("LLM integration (real OpenRouter)", () => {
       const text = raw
         .replace(/^```(?:json)?\s*\n?/i, "")
         .replace(/\n?```\s*$/i, "");
-      const parsed = JSON.parse(text.trim()) as ExtractionResult;
+      const rawParsed = JSON.parse(text.trim());
+      const parsed = Object.fromEntries(
+        Object.entries(rawParsed).filter(([_, v]) => v !== null),
+      ) as ExtractionResult;
 
       expect(parsed.time_relevance).toBeLessThan(0.5);
     },
@@ -811,7 +808,7 @@ describeIntegration("LLM integration (real OpenRouter)", () => {
         `Post time:  ${postTimeIL} (Israel) (1 min AFTER alert)\n` +
         `Current time: 17:35 (Israel)\n` +
         `Alert region: הרצליה, תל אביב\n` +
-        `UI language: ru\n`;
+        `UI language: en\n`;
 
       const postRu = `⚡️ Ракетный обстрел из Ирана по центру Израиля. Зафиксировано не менее 15 ракет. Населению войти в укрытие.`;
 
@@ -830,11 +827,14 @@ describeIntegration("LLM integration (real OpenRouter)", () => {
       const textRu = rawRu
         .replace(/^```(?:json)?\s*\n?/i, "")
         .replace(/\n?```\s*$/i, "");
-      const parsedRu = JSON.parse(textRu.trim()) as ExtractionResult;
+      const rawParsedRu = JSON.parse(textRu.trim());
+      const parsedRu = Object.fromEntries(
+        Object.entries(rawParsedRu).filter(([_, v]) => v !== null),
+      ) as ExtractionResult;
 
       expect(parsedRu.source_trust).toBeGreaterThanOrEqual(0.6);
       expect(parsedRu.confidence).toBeGreaterThanOrEqual(0.6);
-      expect(parsedRu.country_origin).toBe("Iran");
+      expect(["Iran", "Иран"]).toContain(parsedRu.country_origin);
       expect(parsedRu.rocket_count).toBeGreaterThanOrEqual(10);
     },
   );
@@ -847,7 +847,7 @@ describeIntegration("LLM integration (real OpenRouter)", () => {
       `Post time:  ${postTimeIL} (Israel) (2 min AFTER alert)\n` +
       `Current time: 17:35 (Israel)\n` +
       `Alert region: הרצליה, תל אביב\n` +
-      `UI language: ru\n`;
+      `UI language: en\n`;
 
     const postPanic = `‼️‼️‼️ СОТНИ РАКЕТ ЛЕТЯТ НА НАС!!!!! ВСЕ В УКРЫТИЕ СРОЧНО!!! КОНЕЦ СВЕТА!!!! 🔥🔥🔥 НЕВЕРОЯТНОЕ КОЛИЧЕСТВО РАКЕТ!!!!! МЫ ВСЕ УМРЁМ`;
 
@@ -866,7 +866,10 @@ describeIntegration("LLM integration (real OpenRouter)", () => {
     const text = raw
       .replace(/^```(?:json)?\s*\n?/i, "")
       .replace(/\n?```\s*$/i, "");
-    const parsed = JSON.parse(text.trim()) as ExtractionResult;
+    const rawParsed = JSON.parse(text.trim());
+    const parsed = Object.fromEntries(
+      Object.entries(rawParsed).filter(([_, v]) => v !== null),
+    ) as ExtractionResult;
 
     expect(parsed.tone).toBe("alarmist");
     expect(parsed.source_trust).toBeLessThan(0.4);

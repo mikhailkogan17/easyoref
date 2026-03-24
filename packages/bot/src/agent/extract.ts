@@ -10,14 +10,15 @@ import { ChatOpenAI } from "@langchain/openai";
 import { config } from "../config.js";
 import * as logger from "../logger.js";
 import { textHash, toIsraelTime } from "./helpers.js";
-import { getCachedExtractions, saveCachedExtractions } from "./store.js";
 import type {
   AlertType,
   ChannelTracking,
+  EnrichmentData,
   ExtractionResult,
   TrackedMessage,
   ValidatedExtraction,
-} from "./types.js";
+} from "./schemas.js";
+import { getCachedExtractions, saveCachedExtractions } from "./store.js";
 
 // ── LLM instances ──────────────────────────────────────
 
@@ -159,53 +160,27 @@ If a message discusses casualties or confirmed hits, verify the timing carefully
 
     case "resolved":
       return `PHASE: RESOLVED (incident over, assessing damage).
-Focus on: intercepted (final count), hits_confirmed, casualties, injuries, open_area_impact.
+Focus on: country_origin, intercepted (final count), hits_confirmed, casualties, injuries, open_area_impact.
 All fields are valid at this stage. Prioritize confirmed official reports.`;
   }
 }
 
 export const EXTRACT_SYSTEM_PROMPT = `You analyze Telegram channel messages about a missile/rocket attack on Israel.
-Your job: extract factual data, assess quality, AND validate temporal relevance.
+Extract structured data from the message and return ONLY valid JSON (no markdown).
+All field definitions and type info are in your ExtractionResultSchema.
 
 CRITICAL — TIME VALIDATION:
-You will receive the alert time and the post time. You MUST determine if this post
-is about the CURRENT attack or about a previous/different event.
-- If post discusses events clearly BEFORE the alert time → time_relevance=0
-- If post is generic military news not specific to this attack → time_relevance=0.2
-- If post discusses the current attack → time_relevance=1.0
-- If uncertain → time_relevance=0.5 (the system will use alert_history to verify)
+- If post discusses events BEFORE alert time → time_relevance=0
+- If post is generic military news not specific to THIS attack → time_relevance=0.2
+- If post discusses current attack → time_relevance=1.0
+- If uncertain → time_relevance=0.5
 
-Return ONLY valid JSON (no markdown, no explanation):
-{
-  "region_relevance": float,       // 0–1: does this message discuss the specified alert region?
-  "source_trust": float,           // 0–1: factual reporting (1.0) vs unverified rumors/panic (0.0)
-  "tone": "calm"|"neutral"|"alarmist",
-  "time_relevance": float,         // 0–1: is this post about the CURRENT attack? (see rules above)
-  "country_origin": string|null,   // "Iran","Yemen","Lebanon","Gaza","Iraq","Syria" or null
-  "rocket_count": int|null,
-  "is_cassette": bool|null,
-  "intercepted": int|null,
-  "intercepted_qual": ${QUAL_VALUES}|null,
-  "intercepted_qual_num": int|null,
-  "sea_impact": int|null,
-  "sea_impact_qual": ${QUAL_VALUES}|null,
-  "sea_impact_qual_num": int|null,
-  "open_area_impact": int|null,
-  "open_area_impact_qual": ${QUAL_VALUES}|null,
-  "open_area_impact_qual_num": int|null,
-  "hits_confirmed": int|null,
-  "hit_location": string|null,
-  "hit_type": "direct"|"shrapnel"|null,
-  "hit_detail": string|null,
-  "casualties": int|null,
-  "injuries": int|null,
-  "injuries_cause": "rocket"|"rushing_to_shelter"|null,
-  "eta_refined_minutes": int|null,
-  "rocket_detail": string|null,
-  "confidence": float
-}
+MANDATORY METADATA (ALWAYS INCLUDE):
+- time_relevance, region_relevance, confidence, source_trust, tone.
+- These fields MUST always be present in the JSON. Never omit them.
+- Use numbers (0.0 to 1.0) for relevance/confidence/trust and strings for tone.
 
-Rules:
+PHASE-SPECIFIC CONSTRAINTS:
 - If unrelated to the alert region, set region_relevance=0 and all data fields to null.
 - If message is speculative/unconfirmed rumor, set source_trust < 0.4.
 - If message uses excessive caps, exclamation marks, panic language → tone="alarmist".
@@ -226,10 +201,12 @@ Rules:
   confidence for casualties MUST be >= 0.95 or set to null.
 - INJURY RETRACTIONS: If a source explicitly states "no injured", "false report of injury",
   "ложное сообщение о раненом", "אין פצועים", set injuries=0 with high confidence (>= 0.8).
-  This overrides earlier injury reports.- INJURIES CAUSE: injuries_cause distinguishes:
+  This overrides earlier injury reports.
+- INJURIES CAUSE: injuries_cause distinguishes:
   - "rocket" = injured by rocket fragment, blast, or structural damage from impact
   - "rushing_to_shelter" = injured while running to shelter (fell, stampede, heart attack, panic)
-  - null = unknown or no injuries. ALWAYS set this when injuries > 0.- GEO-RELEVANCE FOR HITS: hits_confirmed, hit_location, hit_detail and hit_type must refer to
+  - null = unknown or no injuries. ALWAYS set this when injuries > 0.
+- GEO-RELEVANCE FOR HITS: hits_confirmed, hit_location, hit_detail and hit_type must refer to
   the CONFIGURED ALERT ZONE only. If the source describes damage/debris in a DIFFERENT city
   or area (e.g., Rishon LeZion when the zone is Tel Aviv South), set hit_location to that city
   name with a note, set region_relevance proportionally lower, and describe the actual location
@@ -263,7 +240,7 @@ export interface ExtractContext {
   alertId: string;
   language: string;
   /** Existing enrichment from earlier phases — for cross-reference */
-  existingEnrichment?: import("./types.js").EnrichmentData;
+  existingEnrichment?: EnrichmentData;
 }
 
 /**
@@ -373,7 +350,10 @@ export async function extractPosts(
         const text = raw
           .replace(/^```(?:json)?\s*\n?/i, "")
           .replace(/\n?```\s*$/i, "");
-        const parsed = JSON.parse(text.trim()) as ExtractionResult;
+        const rawParsed = JSON.parse(text.trim());
+        const parsed = Object.fromEntries(
+          Object.entries(rawParsed).filter(([_, v]) => v !== null)
+        ) as ExtractionResult;
         return {
           ...parsed,
           channel: post.channel,
@@ -392,24 +372,6 @@ export async function extractPosts(
           source_trust: 0,
           tone: "neutral" as const,
           time_relevance: 0,
-          country_origin: null,
-          rocket_count: null,
-          is_cassette: null,
-          intercepted: null,
-          intercepted_qual: null,
-          intercepted_qual_num: null,
-          sea_impact: null,
-          sea_impact_qual: null,
-          sea_impact_qual_num: null,
-          open_area_impact: null,
-          open_area_impact_qual: null,
-          open_area_impact_qual_num: null,
-          hits_confirmed: null,
-          casualties: null,
-          injuries: null,
-          injuries_cause: null,
-          eta_refined_minutes: null,
-          rocket_detail: null,
           confidence: 0,
           valid: false,
           reject_reason: "extraction_error",
@@ -456,12 +418,12 @@ export function postFilter(
     }
     // V1: region relevance — relaxed for rocket_count-only posts (national totals are valid)
     const regionThreshold =
-      ext.rocket_count !== null &&
-      ext.intercepted === null &&
-      ext.intercepted_qual === null &&
-      ext.hits_confirmed === null &&
-      ext.casualties === null &&
-      ext.injuries === null
+      ext.rocket_count != undefined &&
+      ext.intercepted == undefined &&
+      ext.intercepted_qual == undefined &&
+      ext.hits_confirmed == undefined &&
+      ext.casualties == undefined &&
+      ext.injuries == undefined
         ? 0.3
         : 0.5;
     if (ext.region_relevance < regionThreshold) {
@@ -475,23 +437,23 @@ export function postFilter(
     if (ext.tone === "alarmist") {
       return { ...ext, valid: false, reject_reason: "alarmist_tone" };
     }
-    // V4: at least one data field must be non-null
+    // V4: at least one data field must be non-undefined
     const hasData =
-      ext.country_origin !== null ||
-      ext.rocket_count !== null ||
-      ext.is_cassette !== null ||
-      ext.intercepted !== null ||
-      ext.intercepted_qual !== null ||
-      ext.hits_confirmed !== null ||
-      ext.casualties !== null ||
-      ext.injuries !== null ||
-      ext.eta_refined_minutes !== null;
+      ext.country_origin != undefined ||
+      ext.rocket_count != undefined ||
+      ext.is_cassette != undefined ||
+      ext.intercepted != undefined ||
+      ext.intercepted_qual != undefined ||
+      ext.hits_confirmed != undefined ||
+      ext.casualties != undefined ||
+      ext.injuries != undefined ||
+      ext.eta_refined_minutes != undefined;
     if (!hasData) {
       return { ...ext, valid: false, reject_reason: "no_data" };
     }
     // V5: overall confidence floor
     // Rocket count posts get a lower floor (0.2) — national totals are high-value even if uncertain
-    const confidenceFloor = ext.rocket_count !== null ? 0.2 : 0.3;
+    const confidenceFloor = ext.rocket_count != undefined ? 0.2 : 0.3;
     if (ext.confidence < confidenceFloor) {
       return { ...ext, valid: false, reject_reason: "low_confidence" };
     }

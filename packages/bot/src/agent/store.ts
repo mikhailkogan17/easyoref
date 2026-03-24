@@ -15,8 +15,18 @@
  */
 
 import { getRedis } from "./redis.js";
-import type { AlertType, EnrichmentData } from "./types.js";
-import { emptyEnrichmentData } from "./types.js";
+import type {
+  ActiveSession,
+  AlertMeta,
+  AlertType,
+  ChannelPost,
+  EnrichmentData,
+  TelegramMessage,
+} from "./schemas.js";
+import { createEmptyEnrichmentData } from "./schemas.js";
+
+// Re-export types for backward compatibility
+export type { ActiveSession, AlertMeta, ChannelPost, TelegramMessage };
 
 const META_TTL_S = 20 * 60; // 20 minutes
 const SESSION_TTL_S = 45 * 60; // 45 min worst case
@@ -44,52 +54,7 @@ export const PHASE_INITIAL_DELAY_MS: Record<AlertType, number> = {
   resolved: 90_000, // 90s — wait for first wave of post-incident reports
 };
 
-// ── Types ──────────────────────────────────────────────
-
-export interface ChatMessage {
-  chatId: string;
-  messageId: number;
-  isCaption: boolean;
-}
-
-export interface AlertMeta {
-  alertId: string;
-  messageId: number;
-  chatId: string;
-  isCaption: boolean;
-  alertTs: number;
-  alertType: AlertType;
-  alertAreas: string[];
-  currentText: string;
-}
-
-export interface ChannelPost {
-  channel: string;
-  text: string;
-  ts: number;
-  messageUrl?: string;
-}
-
-export interface ActiveSession {
-  /** First alertId that started this session */
-  sessionId: string;
-  sessionStartTs: number;
-  /** Current phase */
-  phase: AlertType;
-  phaseStartTs: number;
-  /** Latest alert being enriched */
-  latestAlertId: string;
-  latestMessageId: number;
-  latestAlertTs: number;
-  chatId: string;
-  isCaption: boolean;
-  currentText: string;
-  /** Original formatMessage output without enrichment — used for rebuild */
-  baseText: string;
-  alertAreas: string[];
-  /** Per-chat message tracking for multi-chat broadcasting */
-  chatMessages?: ChatMessage[];
-}
+// ── Types are now in schemas.ts (imported above) ───────
 
 // ── Alert Meta (per-alert) ─────────────────────────────
 
@@ -102,10 +67,12 @@ export async function saveAlertMeta(meta: AlertMeta): Promise<void> {
   );
 }
 
-export async function getAlertMeta(alertId: string): Promise<AlertMeta | null> {
+export async function getAlertMeta(
+  alertId: string,
+): Promise<AlertMeta | undefined> {
   const redis = getRedis();
   const raw = await redis.get(`alert:${alertId}:meta`);
-  return raw ? (JSON.parse(raw) as AlertMeta) : null;
+  return raw ? (JSON.parse(raw) as AlertMeta) : undefined;
 }
 
 // ── Session posts (shared across entire session) ───────
@@ -129,10 +96,10 @@ export async function setActiveSession(session: ActiveSession): Promise<void> {
   await redis.setex("session:active", SESSION_TTL_S, JSON.stringify(session));
 }
 
-export async function getActiveSession(): Promise<ActiveSession | null> {
+export async function getActiveSession(): Promise<ActiveSession | undefined> {
   const redis = getRedis();
   const raw = await redis.get("session:active");
-  return raw ? (JSON.parse(raw) as ActiveSession) : null;
+  return raw ? (JSON.parse(raw) as ActiveSession) : undefined;
 }
 
 export async function clearSession(): Promise<void> {
@@ -153,13 +120,16 @@ export function isPhaseExpired(session: ActiveSession): boolean {
 
 // ── Compat shims (used by gramjs-monitor, graph) ───────
 
-export async function getActiveAlert(): Promise<{
-  alertId: string;
-  alertTs: number;
-  alertType: AlertType;
-} | null> {
+export async function getActiveAlert(): Promise<
+  | {
+      alertId: string;
+      alertTs: number;
+      alertType: AlertType;
+    }
+  | undefined
+> {
   const s = await getActiveSession();
-  if (!s) return null;
+  if (!s) return undefined;
   return {
     alertId: s.latestAlertId,
     alertTs: s.latestAlertTs,
@@ -190,7 +160,9 @@ export async function saveEnrichmentData(data: EnrichmentData): Promise<void> {
 export async function getEnrichmentData(): Promise<EnrichmentData> {
   const redis = getRedis();
   const raw = await redis.get("session:enrichment");
-  return raw ? (JSON.parse(raw) as EnrichmentData) : emptyEnrichmentData();
+  return raw
+    ? (JSON.parse(raw) as EnrichmentData)
+    : createEmptyEnrichmentData();
 }
 
 // ── Last update timestamp (tracks when last enrichment job ran) ──

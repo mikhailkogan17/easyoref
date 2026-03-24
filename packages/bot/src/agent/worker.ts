@@ -10,24 +10,24 @@
  * with the appropriate delay. Stops when phase expires.
  */
 
-import { Bot } from "grammy";
 import { Worker } from "bullmq";
+import { Bot } from "grammy";
 import { config } from "../config.js";
 import { getLanguagePack } from "../i18n.js";
 import * as logger from "../logger.js";
 import { runEnrichment } from "./graph.js";
 import { MONITORING_RE, stripMonitoring } from "./message.js";
-import { enqueueEnrich } from "./queue.js";
 import type { EnrichJobData } from "./queue.js";
+import { enqueueEnrich } from "./queue.js";
 import {
   clearSession,
   getActiveSession,
   isPhaseExpired,
   PHASE_ENRICH_DELAY_MS,
-  type ChatMessage,
+  type TelegramMessage,
 } from "./store.js";
 
-let _worker: Worker | null = null;
+let _worker: Worker | undefined = undefined;
 
 /** Remove ⏳ monitoring indicator from all chat messages (best-effort) */
 async function removeMonitoringIndicator(session: {
@@ -35,12 +35,12 @@ async function removeMonitoringIndicator(session: {
   latestMessageId: number;
   isCaption: boolean;
   currentText: string;
-  chatMessages?: ChatMessage[];
+  telegramMessages?: TelegramMessage[];
 }): Promise<void> {
   if (!config.botToken || !MONITORING_RE.test(session.currentText)) return;
   const cleaned = stripMonitoring(session.currentText);
   const tgBot = new Bot(config.botToken);
-  const targets: ChatMessage[] = session.chatMessages ?? [
+  const targets: TelegramMessage[] = session.telegramMessages ?? [
     {
       chatId: session.chatId,
       messageId: session.latestMessageId,
@@ -115,7 +115,7 @@ export function startEnrichWorker(): void {
         chatId: session.chatId,
         messageId: session.latestMessageId,
         isCaption: session.isCaption,
-        chatMessages: session.chatMessages,
+        telegramMessages: session.telegramMessages,
         currentText: session.baseText ?? session.currentText,
         monitoringLabel: langPack.labels.monitoring,
       });
@@ -163,6 +163,6 @@ export function startEnrichWorker(): void {
 export async function stopEnrichWorker(): Promise<void> {
   if (_worker) {
     await _worker.close();
-    _worker = null;
+    _worker = undefined;
   }
 }

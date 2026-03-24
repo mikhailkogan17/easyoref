@@ -15,7 +15,7 @@ export interface EnrichJobData {
   alertTs: number;
 }
 
-let _queue: Queue<EnrichJobData> | null = null;
+let _queue: Queue<EnrichJobData> | undefined = undefined;
 
 export function getEnrichQueue(): Queue<EnrichJobData> {
   if (!_queue) {
@@ -45,11 +45,7 @@ export async function enqueueEnrich(
 
   const delay = delayMs ?? config.agent.enrichDelayMs;
   const queue = getEnrichQueue();
-  await queue.add(
-    "enrich",
-    { alertId, alertTs },
-    { delay },
-  );
+  await queue.add("enrich", { alertId, alertTs }, { delay });
   logger.info("Enrich job enqueued", {
     alertId,
     delay_ms: delay,

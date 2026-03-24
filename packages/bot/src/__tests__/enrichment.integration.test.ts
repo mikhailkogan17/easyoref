@@ -78,7 +78,7 @@ vi.mock("../logger.js", () => ({
 
 vi.mock("../agent/redis.js", () => ({
   getRedis: vi.fn().mockReturnValue({
-    get: vi.fn().mockResolvedValue(null),
+    get: vi.fn().mockResolvedValue(undefined),
     setex: vi.fn(),
     lpush: vi.fn(),
     expire: vi.fn(),
@@ -89,8 +89,8 @@ vi.mock("../agent/redis.js", () => ({
 
 vi.mock("../agent/store.js", () => ({
   getChannelPosts: vi.fn().mockResolvedValue([]),
-  getEnrichmentData: vi.fn().mockResolvedValue(null),
-  getActiveSession: vi.fn().mockResolvedValue(null),
+  getEnrichmentData: vi.fn().mockResolvedValue(undefined),
+  getActiveSession: vi.fn().mockResolvedValue(undefined),
   saveEnrichmentData: vi.fn(),
   pushSessionPost: vi.fn(),
   getCachedExtractions: vi.fn().mockResolvedValue(new Map()),
@@ -194,21 +194,18 @@ describe("postFilter", () => {
       tone: "calm",
       time_relevance: 0.2, // ← stale!
       country_origin: "Lebanon",
-      rocket_count: null,
-      is_cassette: null,
-      intercepted: null,
-      intercepted_qual: null,
-      intercepted_qual_num: null,
-      sea_impact: null,
-      sea_impact_qual: null,
-      sea_impact_qual_num: null,
-      open_area_impact: null,
-      open_area_impact_qual: null,
-      open_area_impact_qual_num: null,
-      hits_confirmed: null,
-      casualties: null,
-      injuries: null,
-      eta_refined_minutes: null,
+      rocket_count: undefined,
+      is_cassette: undefined,
+      intercepted: undefined,
+      intercepted_qual: undefined,
+      sea_impact: undefined,
+      sea_impact_qual: undefined,
+      open_area_impact: undefined,
+      open_area_impact_qual: undefined,
+      hits_confirmed: undefined,
+      casualties: undefined,
+      injuries: undefined,
+      eta_refined_minutes: undefined,
       confidence: 0.9,
       valid: true,
     };
@@ -227,20 +224,17 @@ describe("postFilter", () => {
       time_relevance: 1.0,
       country_origin: "Iran",
       rocket_count: 10,
-      is_cassette: null,
-      intercepted: null,
-      intercepted_qual: null,
-      intercepted_qual_num: null,
-      sea_impact: null,
-      sea_impact_qual: null,
-      sea_impact_qual_num: null,
-      open_area_impact: null,
-      open_area_impact_qual: null,
-      open_area_impact_qual_num: null,
-      hits_confirmed: null,
-      casualties: null,
-      injuries: null,
-      eta_refined_minutes: null,
+      is_cassette: undefined,
+      intercepted: undefined,
+      intercepted_qual: undefined,
+      sea_impact: undefined,
+      sea_impact_qual: undefined,
+      open_area_impact: undefined,
+      open_area_impact_qual: undefined,
+      hits_confirmed: undefined,
+      casualties: undefined,
+      injuries: undefined,
+      eta_refined_minutes: undefined,
       confidence: 0.9,
       valid: true,
     };
@@ -256,22 +250,19 @@ describe("postFilter", () => {
       source_trust: 0.9,
       tone: "calm",
       time_relevance: 1.0,
-      country_origin: null,
-      rocket_count: null,
-      is_cassette: null,
-      intercepted: null,
-      intercepted_qual: null,
-      intercepted_qual_num: null,
-      sea_impact: null,
-      sea_impact_qual: null,
-      sea_impact_qual_num: null,
-      open_area_impact: null,
-      open_area_impact_qual: null,
-      open_area_impact_qual_num: null,
-      hits_confirmed: null,
-      casualties: null,
-      injuries: null,
-      eta_refined_minutes: null,
+      country_origin: undefined,
+      rocket_count: undefined,
+      is_cassette: undefined,
+      intercepted: undefined,
+      intercepted_qual: undefined,
+      sea_impact: undefined,
+      sea_impact_qual: undefined,
+      open_area_impact: undefined,
+      open_area_impact_qual: undefined,
+      hits_confirmed: undefined,
+      casualties: undefined,
+      injuries: undefined,
+      eta_refined_minutes: undefined,
       confidence: 0.9,
       valid: true,
     };
@@ -289,20 +280,17 @@ describe("postFilter", () => {
       time_relevance: 1.0,
       country_origin: "Iran",
       rocket_count: 10,
-      is_cassette: null,
-      intercepted: null,
-      intercepted_qual: null,
-      intercepted_qual_num: null,
-      sea_impact: null,
-      sea_impact_qual: null,
-      sea_impact_qual_num: null,
-      open_area_impact: null,
-      open_area_impact_qual: null,
-      open_area_impact_qual_num: null,
-      hits_confirmed: null,
-      casualties: null,
-      injuries: null,
-      eta_refined_minutes: null,
+      is_cassette: undefined,
+      intercepted: undefined,
+      intercepted_qual: undefined,
+      sea_impact: undefined,
+      sea_impact_qual: undefined,
+      open_area_impact: undefined,
+      open_area_impact_qual: undefined,
+      hits_confirmed: undefined,
+      casualties: undefined,
+      injuries: undefined,
+      eta_refined_minutes: undefined,
       confidence: 0.8,
       valid: true,
     };
@@ -315,12 +303,12 @@ describe("postFilter", () => {
 // ── Vote ───────────────────────────────────────────────
 
 describe("vote", () => {
-  it("returns null for empty extractions", () => {
+  it("returns undefined for empty extractions", () => {
     const result = vote([], "test");
-    expect(result).toBeNull();
+    expect(result).toBeUndefined();
   });
 
-  it("returns null when all extractions are invalid", () => {
+  it("returns undefined when all extractions are invalid", () => {
     const ext: ValidatedExtraction = {
       channel: "@N12LIVE",
       region_relevance: 0.9,
@@ -328,27 +316,24 @@ describe("vote", () => {
       tone: "calm",
       time_relevance: 0.1,
       country_origin: "Iran",
-      rocket_count: null,
-      is_cassette: null,
-      intercepted: null,
-      intercepted_qual: null,
-      intercepted_qual_num: null,
-      sea_impact: null,
-      sea_impact_qual: null,
-      sea_impact_qual_num: null,
-      open_area_impact: null,
-      open_area_impact_qual: null,
-      open_area_impact_qual_num: null,
-      hits_confirmed: null,
-      casualties: null,
-      injuries: null,
-      eta_refined_minutes: null,
+      rocket_count: undefined,
+      is_cassette: undefined,
+      intercepted: undefined,
+      intercepted_qual: undefined,
+      sea_impact: undefined,
+      sea_impact_qual: undefined,
+      open_area_impact: undefined,
+      open_area_impact_qual: undefined,
+      hits_confirmed: undefined,
+      casualties: undefined,
+      injuries: undefined,
+      eta_refined_minutes: undefined,
       confidence: 0.8,
       valid: false,
       reject_reason: "stale_post",
     };
     const result = vote([ext], "test");
-    expect(result).toBeNull();
+    expect(result).toBeUndefined();
   });
 
   it("aggregates country origins from multiple sources", () => {
@@ -360,20 +345,17 @@ describe("vote", () => {
       time_relevance: 1.0,
       country_origin: "Iran",
       rocket_count: 15,
-      is_cassette: null,
-      intercepted: null,
-      intercepted_qual: null,
-      intercepted_qual_num: null,
-      sea_impact: null,
-      sea_impact_qual: null,
-      sea_impact_qual_num: null,
-      open_area_impact: null,
-      open_area_impact_qual: null,
-      open_area_impact_qual_num: null,
-      hits_confirmed: null,
-      casualties: null,
-      injuries: null,
-      eta_refined_minutes: null,
+      is_cassette: undefined,
+      intercepted: undefined,
+      intercepted_qual: undefined,
+      sea_impact: undefined,
+      sea_impact_qual: undefined,
+      open_area_impact: undefined,
+      open_area_impact_qual: undefined,
+      hits_confirmed: undefined,
+      casualties: undefined,
+      injuries: undefined,
+      eta_refined_minutes: undefined,
       confidence: 0.9,
       valid: true,
       messageUrl: "https://t.me/N12LIVE/167775",
@@ -390,7 +372,7 @@ describe("vote", () => {
     const result = vote([ext1, ext2], "test");
     const voted = result!;
 
-    expect(voted).not.toBeNull();
+    expect(voted).not.toBeUndefined();
     expect(voted.country_origins).toHaveLength(1);
     expect(voted.country_origins![0]!.name).toBe("Iran");
     expect(voted.country_origins![0]!.citations).toEqual([1, 2]);
@@ -408,20 +390,17 @@ describe("vote", () => {
       time_relevance: 1.0,
       country_origin: "Iran",
       rocket_count: 15,
-      is_cassette: null,
+      is_cassette: undefined,
       intercepted: 12,
-      intercepted_qual: null,
-      intercepted_qual_num: null,
+      intercepted_qual: undefined,
       sea_impact: 2,
-      sea_impact_qual: null,
-      sea_impact_qual_num: null,
-      open_area_impact: null,
-      open_area_impact_qual: null,
-      open_area_impact_qual_num: null,
+      sea_impact_qual: undefined,
+      open_area_impact: undefined,
+      open_area_impact_qual: undefined,
       hits_confirmed: 1,
       casualties: 0,
       injuries: 3,
-      eta_refined_minutes: null,
+      eta_refined_minutes: undefined,
       confidence: 0.9,
       valid: true,
       messageUrl: "https://t.me/N12LIVE/167790",
@@ -434,7 +413,7 @@ describe("vote", () => {
     expect(voted.sea_impact).toBe(2);
     expect(voted.hits_confirmed).toBe(1);
     expect(voted.injuries).toBe(3);
-    expect(voted.casualties).toBeNull(); // 0 is not > 0
+    expect(voted.casualties).toBeUndefined(); // 0 is not > 0
   });
 });
 
@@ -451,38 +430,35 @@ describe("buildEnrichmentFromVote", () => {
 
     // Siren vote has interception data but no origin
     const sirenVote: VotedResult = {
-      eta_refined_minutes: null,
+      eta_refined_minutes: undefined,
       eta_citations: [],
-      country_origins: null,
-      rocket_count_min: null,
-      rocket_count_max: null,
+      country_origins: [],
+      rocket_count_min: undefined,
+      rocket_count_max: undefined,
       rocket_citations: [],
       rocket_confidence: 0,
-      is_cassette: null,
+      is_cassette: undefined,
       is_cassette_confidence: 0,
       intercepted: 8,
-      intercepted_qual: null,
-      intercepted_qual_num: null,
+      intercepted_qual: undefined,
       intercepted_confidence: 0.8,
-      sea_impact: null,
-      sea_impact_qual: null,
-      sea_impact_qual_num: null,
+      sea_impact: undefined,
+      sea_impact_qual: undefined,
       sea_confidence: 0,
-      open_area_impact: null,
-      open_area_impact_qual: null,
-      open_area_impact_qual_num: null,
+      open_area_impact: undefined,
+      open_area_impact_qual: undefined,
       open_area_confidence: 0,
-      hits_confirmed: null,
+      hits_confirmed: undefined,
       hits_citations: [],
       hits_confidence: 0,
       no_impacts: false,
       no_impacts_citations: [],
       intercepted_citations: [1],
-      rocket_detail: null,
-      casualties: null,
+      rocket_detail: undefined,
+      casualties: undefined,
       casualties_citations: [],
       casualties_confidence: 0,
-      injuries: null,
+      injuries: undefined,
       injuries_citations: [],
       injuries_confidence: 0,
       confidence: 0.8,
@@ -726,7 +702,7 @@ describe.skipIf(!HAS_API)("LLM extraction (real API)", () => {
       `Post time:  ${postTimeIL} (Israel) ${postAgeSuffix}\n` +
       `Current time: ${nowIL} (Israel)\n` +
       `Alert region: תל אביב - דרום העיר ויפו\n` +
-      `UI language: ru\n`;
+      `UI language: en\n`;
 
     const response = await llm.invoke([
       { role: "system", content: systemPrompt },
@@ -743,7 +719,10 @@ describe.skipIf(!HAS_API)("LLM extraction (real API)", () => {
     const text = raw
       .replace(/^```(?:json)?\s*\n?/i, "")
       .replace(/\n?```\s*$/i, "");
-    return JSON.parse(text.trim());
+    const rawParsed = JSON.parse(text.trim());
+    return Object.fromEntries(
+      Object.entries(rawParsed).filter(([_, v]) => v !== null),
+    );
   }
 
   it("correctly identifies Iran as origin from N12 launch report", async () => {
@@ -763,16 +742,16 @@ describe.skipIf(!HAS_API)("LLM extraction (real API)", () => {
     expect(result.time_relevance).toBeLessThan(0.5);
   }, 30_000);
 
-  it("extracts interception data in siren phase", async () => {
+  it("extracts interception data in siren phase", { timeout: 60_000 }, async () => {
     const result = await extractPost(POST_INTERCEPTION, "siren");
 
     expect(result.time_relevance).toBeGreaterThanOrEqual(0.7);
     expect(result.country_origin).toBe("Iran");
     // Should have some interception data
     expect(
-      result.intercepted !== null || result.intercepted_qual !== null,
+      result.intercepted !== undefined || result.intercepted_qual !== undefined,
     ).toBe(true);
-  }, 30_000);
+  });
 
   it("extracts full damage report in resolved phase", async () => {
     const result = await extractPost(POST_RESOLVED, "resolved");

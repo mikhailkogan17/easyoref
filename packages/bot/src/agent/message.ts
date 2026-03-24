@@ -9,11 +9,6 @@ import { Bot } from "grammy";
 import { config } from "../config.js";
 import * as logger from "../logger.js";
 import { textHash, toIsraelTime } from "./helpers.js";
-import {
-  getActiveSession,
-  saveEnrichmentData,
-  setActiveSession,
-} from "./store.js";
 import type {
   AlertType,
   CitedSource,
@@ -21,8 +16,13 @@ import type {
   InlineCite,
   QualCount,
   VotedResult,
-} from "./types.js";
-import { emptyEnrichmentData } from "./types.js";
+} from "./schemas.js";
+import { createEmptyEnrichmentData } from "./schemas.js";
+import {
+  getActiveSession,
+  saveEnrichmentData,
+  setActiveSession,
+} from "./store.js";
 
 // ── Country translations ───────────────────────────────
 
@@ -115,7 +115,7 @@ export function renderCitesGlobal(
   const parts: string[] = [];
   for (const c of cites) {
     const i = globalMap.get(c.url);
-    if (i !== undefined) {
+    if (i) {
       parts.push(`<a href="${c.url}">[${i}]</a>`);
     }
   }
@@ -145,23 +145,22 @@ export function appendMonitoring(text: string, label: string): string {
 // ── Display helpers ────────────────────────────────────
 
 function qualDisplay(
-  qual: QualCount | null,
-  qualNum: number | null,
+  qual: QualCount | undefined,
   conf: number,
-): string | null {
-  if (qual === null) return null;
-  if (qual === "none") return conf >= CERTAIN ? "нет" : null;
-  const map: Record<QualCount, string> = {
+): string | undefined {
+  if (qual === undefined) return undefined;
+  if (qual.type === "none") return conf >= CERTAIN ? "нет" : undefined;
+  const map: Record<string, string> = {
     all: "все",
     most: "большинство",
     many: "много",
     few: "несколько",
     exists: "есть",
     none: "нет",
-    more_than: qualNum != null ? `>${qualNum}` : ">1",
-    less_than: qualNum != null ? `<${qualNum}` : "<нескольких",
   };
-  return map[qual];
+  if (qual.type === "more_than") return `>${qual.value}`;
+  if (qual.type === "less_than") return `<${qual.value}`;
+  return map[qual.type];
 }
 
 // ── Build enrichment data from vote ────────────────────
@@ -190,7 +189,7 @@ export function buildEnrichmentFromVote(
 
   // ETA — only for early_warning/siren
   if (
-    r.eta_refined_minutes !== null &&
+    r.eta_refined_minutes &&
     (alertType === "early_warning" || alertType === "siren")
   ) {
     const absTime = new Date(
@@ -207,8 +206,8 @@ export function buildEnrichmentFromVote(
   // Rocket count — show even at lower confidence (high-value intel)
   // >= 0.55: show with (?); >= UNCERTAIN (0.75): show without marker
   if (
-    r.rocket_count_min !== null &&
-    r.rocket_count_max !== null &&
+    r.rocket_count_min !== undefined &&
+    r.rocket_count_max !== undefined &&
     r.rocket_confidence >= 0.55
   ) {
     const u = r.rocket_confidence < UNCERTAIN ? " (?)" : "";
@@ -220,33 +219,25 @@ export function buildEnrichmentFromVote(
   }
 
   // Cassette
-  if (r.is_cassette !== null && r.is_cassette_confidence >= SKIP) {
+  if (r.is_cassette !== undefined && r.is_cassette_confidence >= SKIP) {
     data.isCassette = r.is_cassette;
   }
 
   // Intercepted
-  if (r.intercepted !== null && r.intercepted_confidence >= SKIP) {
+  if (r.intercepted !== undefined && r.intercepted_confidence >= SKIP) {
     const u = r.intercepted_confidence < UNCERTAIN ? " (?)" : "";
     data.intercepted = `${r.intercepted}${u}`;
     data.interceptedCites = extractCites(
       r.intercepted_citations,
       r.citedSources,
     );
-  } else if (r.intercepted_qual !== null && r.intercepted_confidence >= SKIP) {
-    const qs = qualDisplay(
-      r.intercepted_qual,
-      r.intercepted_qual_num,
-      r.intercepted_confidence,
-    );
+  } else if (r.intercepted_qual && r.intercepted_confidence >= SKIP) {
+    const qs = qualDisplay(r.intercepted_qual, r.intercepted_confidence);
     if (qs) data.intercepted = qs;
   }
 
   // Hits
-  if (
-    r.hits_confirmed !== null &&
-    r.hits_confirmed > 0 &&
-    r.hits_confidence >= SKIP
-  ) {
+  if (r.hits_confirmed && r.hits_confirmed > 0 && r.hits_confidence >= SKIP) {
     const u = r.hits_confidence < UNCERTAIN ? " (?)" : "";
     data.hitsConfirmed = `${r.hits_confirmed}${u}`;
     data.hitsCites = extractCites(r.hits_citations, r.citedSources);
@@ -264,20 +255,20 @@ export function buildEnrichmentFromVote(
   }
 
   // Hit location & type
-  if (r.hit_location && r.hits_confirmed !== null && r.hits_confirmed > 0) {
+  if (r.hit_location && r.hits_confirmed && r.hits_confirmed > 0) {
     data.hitLocation = r.hit_location;
   }
-  if (r.hit_type && r.hits_confirmed !== null && r.hits_confirmed > 0) {
+  if (r.hit_type && r.hits_confirmed && r.hits_confirmed > 0) {
     data.hitType = r.hit_type;
   }
-  if (r.hit_detail && r.hits_confirmed !== null && r.hits_confirmed > 0) {
+  if (r.hit_detail && r.hits_confirmed && r.hits_confirmed > 0) {
     data.hitDetail = r.hit_detail;
   }
 
   // Casualties — CRITICAL: only report at near-certain confidence
   // Requires explicit mention of killed/dead in source (נהרג/מת/killed/dead/убит/погиб)
   if (
-    r.casualties !== null &&
+    r.casualties &&
     r.casualties > 0 &&
     r.casualties_confidence >= CERTAIN // 0.95 — never show unconfirmed deaths
   ) {
@@ -288,11 +279,7 @@ export function buildEnrichmentFromVote(
 
   // Injuries — show only if confidence >= UNCERTAIN (not SKIP)
   // Retractions: if new vote has injuries=0 and confidence >= UNCERTAIN, clear previous data
-  if (
-    r.injuries !== null &&
-    r.injuries > 0 &&
-    r.injuries_confidence >= UNCERTAIN
-  ) {
+  if (r.injuries && r.injuries > 0 && r.injuries_confidence >= UNCERTAIN) {
     const u = r.injuries_confidence < CERTAIN ? " (?)" : "";
     const causeSuffix =
       r.injuries_cause === "rushing_to_shelter"
@@ -304,14 +291,14 @@ export function buildEnrichmentFromVote(
     data.injuriesCause = r.injuries_cause;
     data.injuriesCites = extractCites(r.injuries_citations, r.citedSources);
   } else if (
-    r.injuries !== null &&
+    r.injuries &&
     r.injuries === 0 &&
     r.injuries_confidence >= UNCERTAIN &&
     prev.injuries
   ) {
     // Explicit retraction: source says "no injured" — clear previous report
-    data.injuries = null;
-    data.injuriesCause = null;
+    data.injuries = undefined;
+    data.injuriesCause = undefined;
     data.injuriesCites = [];
   }
 
@@ -466,7 +453,7 @@ export function insertBeforeBlockEnd(text: string, line: string): string {
   const timePattern =
     /(<b>(?:Время оповещения|Alert time|שעת ההתרעה|وقت الإنذار):<\/b>)/;
   const match = text.match(timePattern);
-  if (match?.index !== undefined) {
+  if (match?.index) {
     return text.slice(0, match.index) + line + "\n" + text.slice(match.index);
   }
   const lines = text.split("\n");
@@ -479,7 +466,7 @@ export const insertBeforeTimeLine = insertBeforeBlockEnd;
 
 // ── Edit message ───────────────────────────────────────
 
-export interface ChatMessageTarget {
+export interface TelegramTargetMessage {
   chatId: string;
   messageId: number;
   isCaption: boolean;
@@ -492,10 +479,9 @@ export interface EditMessageInput {
   chatId: string;
   messageId: number;
   isCaption: boolean;
-  /** All chat targets for multi-chat broadcasting */
-  chatMessages?: ChatMessageTarget[];
+  telegramMessages?: TelegramTargetMessage[];
   currentText: string;
-  votedResult: VotedResult | null;
+  votedResult: VotedResult | undefined;
   previousEnrichment: EnrichmentData;
   monitoringLabel?: string;
 }
@@ -507,10 +493,10 @@ export async function editMessage(input: EditMessageInput): Promise<void> {
   if (!config.botToken) return;
 
   const tgBot = new Bot(config.botToken);
-  const prev = input.previousEnrichment ?? emptyEnrichmentData();
+  const prev = input.previousEnrichment ?? createEmptyEnrichmentData();
 
   // Resolve targets: multi-chat or single fallback
-  const targets: ChatMessageTarget[] = input.chatMessages ?? [
+  const targets: TelegramTargetMessage[] = input.telegramMessages ?? [
     {
       chatId: input.chatId,
       messageId: input.messageId,

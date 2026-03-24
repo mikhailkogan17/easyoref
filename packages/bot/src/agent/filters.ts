@@ -9,12 +9,12 @@
  * Builds ChannelTracking structure for the LLM pipeline.
  */
 
-import type { ChannelPost } from "./store.js";
 import type {
   ChannelTracking,
   ChannelWithUpdates,
   TrackedMessage,
-} from "./types.js";
+} from "./schemas.js";
+import type { ChannelPost } from "./store.js";
 
 // ── Noise detectors ────────────────────────────────────
 

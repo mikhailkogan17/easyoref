@@ -32,7 +32,7 @@ import {
   saveAlertMeta,
   setActiveSession,
   type ActiveSession,
-  type ChatMessage,
+  type TelegramMessage,
 } from "./agent/store.js";
 import { startEnrichWorker, stopEnrichWorker } from "./agent/worker.js";
 import { config, type AlertTypeConfig } from "./config.js";
@@ -477,7 +477,7 @@ async function removeMonitoringFromAll(
 ): Promise<void> {
   if (!MONITORING_RE.test(session.currentText)) return;
   const cleaned = stripMonitoring(session.currentText);
-  const targets: ChatMessage[] = session.chatMessages ?? [
+  const targets: TelegramMessage[] = session.telegramMessages ?? [
     {
       chatId: session.chatId,
       messageId: session.latestMessageId,
@@ -559,7 +559,7 @@ async function processAlert(alert: OrefAlert): Promise<void> {
       (alertType === "resolved" || existingForReply.phase !== "resolved");
     if (shouldReply) {
       // Build per-chat reply targets
-      const cms: ChatMessage[] = existingForReply.chatMessages ?? [
+      const cms: TelegramMessage[] = existingForReply.telegramMessages ?? [
         {
           chatId: existingForReply.chatId,
           messageId: existingForReply.latestMessageId,
@@ -588,12 +588,12 @@ async function processAlert(alert: OrefAlert): Promise<void> {
 
   try {
     // ── Send to all configured chats ──
-    const chatMessages: ChatMessage[] = [];
+    const telegramMessages: TelegramMessage[] = [];
     for (const cid of config.chatIds) {
       const replyTo = replyToMap.get(cid);
       const sent = await sendTelegram(cid, alertType, message, replyTo);
       if (sent) {
-        chatMessages.push({
+        telegramMessages.push({
           chatId: cid,
           messageId: sent.messageId,
           isCaption: sent.isCaption,
@@ -601,8 +601,8 @@ async function processAlert(alert: OrefAlert): Promise<void> {
       }
     }
 
-    if (chatMessages.length === 0) return;
-    const primary = chatMessages[0]!;
+    if (telegramMessages.length === 0) return;
+    const primary = telegramMessages[0]!;
 
     // ── Session-based enrichment lifecycle ──
     if (config.agent.enabled) {
@@ -636,7 +636,7 @@ async function processAlert(alert: OrefAlert): Promise<void> {
             isCaption: primary.isCaption,
             currentText: message,
             baseText: baseMessage,
-            chatMessages,
+            telegramMessages,
           };
           await setActiveSession(updated);
           const delay = PHASE_ENRICH_DELAY_MS.resolved;
@@ -668,7 +668,7 @@ async function processAlert(alert: OrefAlert): Promise<void> {
             currentText: message,
             baseText: baseMessage,
             alertAreas: alert.data,
-            chatMessages,
+            telegramMessages,
           };
           await setActiveSession(updated);
           logger.info("Session: upgraded phase", {
@@ -695,13 +695,13 @@ async function processAlert(alert: OrefAlert): Promise<void> {
             currentText: message,
             baseText: baseMessage,
             alertAreas: alert.data,
-            chatMessages,
+            telegramMessages,
           };
           await setActiveSession(session);
           logger.info("Session: started", {
             sessionId: alert.id,
             phase: alertType,
-            chatCount: chatMessages.length,
+            chatCount: telegramMessages.length,
           });
         }
 

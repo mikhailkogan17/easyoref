@@ -19,9 +19,9 @@
  * Interview answer: "tools are available, agent is autonomous."
  */
 
-import type { AIMessage } from "@langchain/core/messages";
 import {
-  AIMessage as AIMessageClass,
+  AIMessage,
+  BaseMessage,
   HumanMessage,
   SystemMessage,
   ToolMessage,
@@ -30,33 +30,14 @@ import type { StructuredToolInterface } from "@langchain/core/tools";
 import { ChatOpenAI } from "@langchain/openai";
 import { config } from "../config.js";
 import * as logger from "../logger.js";
+import type {
+  ClarifyInput,
+  ClarifyOutput,
+  ValidatedExtraction,
+  VotedResult,
+} from "./schemas.js";
 import { pushSessionPost, type ChannelPost } from "./store.js";
 import { clarifyTools } from "./tools.js";
-import type { ValidatedExtraction, VotedResult } from "./types.js";
-
-// ── Types ──────────────────────────────────────────────
-
-export interface ClarifyInput {
-  alertId: string;
-  alertAreas: string[];
-  alertType: string;
-  alertTs: number;
-  messageId: number;
-  currentText: string;
-  extractions: ValidatedExtraction[];
-  votedResult: VotedResult;
-}
-
-export interface ClarifyOutput {
-  /** New posts discovered by tool calls (to merge into session) */
-  newPosts: ChannelPost[];
-  /** New extractions from tool-fetched posts (to add to existing) */
-  newExtractions: ValidatedExtraction[];
-  /** Number of tool calls made */
-  toolCallCount: number;
-  /** Whether clarification gathered useful new data */
-  clarified: boolean;
-}
 
 // ── Constants ──────────────────────────────────────────
 
@@ -91,22 +72,7 @@ You decide whether tools would help:
 - If news mentions a city/region and you're unsure if it's relevant → use resolve_area.
 - If the attack origin seems stale (about a previous event) → use alert_history to verify.
 - You can call 0, 1, 2, or 3+ tools. Your choice.
-
-When done (with or without tools), respond with ONLY valid JSON (no markdown):
-{
-  "clarified": true/false,
-  "new_data": {
-    "country_origin": string|null,
-    "rocket_count": int|null,
-    "intercepted": int|null,
-    "hits_confirmed": int|null,
-    "casualties": int|null,
-    "injuries": int|null,
-    "is_cassette": bool|null
-  },
-  "confidence_boost": float,  // 0-0.3 (0 if no new info)
-  "reasoning": "brief explanation of decision"
-}`;
+`;
 
 // ── LLM ───────────────────────────────────────────────
 
@@ -142,8 +108,8 @@ function describeContradictions(
 
   // Rocket count spread
   if (
-    voted.rocket_count_min !== null &&
-    voted.rocket_count_max !== null &&
+    voted.rocket_count_min &&
+    voted.rocket_count_max &&
     voted.rocket_count_max - voted.rocket_count_min > 3
   ) {
     issues.push(
@@ -152,14 +118,14 @@ function describeContradictions(
   }
 
   // Low sub-field confidence
-  if (voted.intercepted_confidence < 0.5 && voted.intercepted !== null) {
+  if (voted.intercepted_confidence < 0.5 && voted.intercepted !== undefined) {
     issues.push(
       `Intercepted count (${
         voted.intercepted
       }) has low confidence: ${voted.intercepted_confidence.toFixed(2)}`,
     );
   }
-  if (voted.hits_confidence < 0.5 && voted.hits_confirmed !== null) {
+  if (voted.hits_confidence < 0.5 && voted.hits_confirmed !== undefined) {
     issues.push(
       `Hits confirmed (${
         voted.hits_confirmed
@@ -201,7 +167,7 @@ export async function runClarify(input: ClarifyInput): Promise<ClarifyOutput> {
     `Alert time: ${alertTimeIL} (Israel)\n` +
     `Message ID: ${input.messageId}\n\n` +
     `Current voted result:\n` +
-    JSON.stringify(input.votedResult, null, 2) +
+    JSON.stringify(input.votedResult, undefined, 2) +
     `\n\nContradictions & issues:\n${contradictions}\n\n` +
     `Existing extractions (${
       input.extractions.filter((e) => e.valid).length
@@ -218,17 +184,18 @@ export async function runClarify(input: ClarifyInput): Promise<ClarifyOutput> {
     `the official API resolve these issues? If not, respond directly.`;
 
   // Message history for the ReAct loop
-  const messages: Array<
-    SystemMessage | HumanMessage | AIMessageClass | ToolMessage
-  > = [new SystemMessage(CLARIFY_SYSTEM_PROMPT), new HumanMessage(userPrompt)];
+  const messages: BaseMessage[] = [
+    new SystemMessage(CLARIFY_SYSTEM_PROMPT),
+    new HumanMessage(userPrompt),
+  ];
 
   const newPosts: ChannelPost[] = [];
   let toolCallCount = 0;
 
   for (let iter = 0; iter < MAX_REACT_ITERATIONS; iter++) {
-    const response = (await llmWithTools.invoke(messages)) as AIMessage;
+    const response = await llmWithTools.invoke(messages);
     messages.push(
-      new AIMessageClass({
+      new AIMessage({
         content:
           typeof response.content === "string"
             ? response.content
@@ -348,31 +315,33 @@ export async function runClarify(input: ClarifyInput): Promise<ClarifyOutput> {
         source_trust: 0.85,
         tone: "calm" as const,
         time_relevance: 1.0,
-        country_origin: findings.new_data.country_origin ?? null,
-        rocket_count: findings.new_data.rocket_count ?? null,
-        is_cassette: findings.new_data.is_cassette ?? null,
-        intercepted: findings.new_data.intercepted ?? null,
-        intercepted_qual: null,
-        intercepted_qual_num: null,
-        sea_impact: null,
-        sea_impact_qual: null,
-        sea_impact_qual_num: null,
-        open_area_impact: null,
-        open_area_impact_qual: null,
-        open_area_impact_qual_num: null,
-        hits_confirmed: findings.new_data.hits_confirmed ?? null,
-        casualties: findings.new_data.casualties ?? null,
-        injuries: findings.new_data.injuries ?? null,
-        injuries_cause: null,
-        eta_refined_minutes: null,
-        rocket_detail: null,
+        ...(findings.new_data.country_origin && {
+          country_origin: findings.new_data.country_origin,
+        }),
+        ...(findings.new_data.rocket_count && {
+          rocket_count: findings.new_data.rocket_count,
+        }),
+        ...(findings.new_data.is_cassette && {
+          is_cassette: findings.new_data.is_cassette,
+        }),
+        ...(findings.new_data.intercepted && {
+          intercepted: findings.new_data.intercepted,
+        }),
+        ...(findings.new_data.hits_confirmed && {
+          hits_confirmed: findings.new_data.hits_confirmed,
+        }),
+        ...(findings.new_data.casualties && {
+          casualties: findings.new_data.casualties,
+        }),
+        ...(findings.new_data.injuries && {
+          injuries: findings.new_data.injuries,
+        }),
         confidence: Math.min(
           0.9,
           (input.votedResult.confidence ?? 0.5) +
             (findings.confidence_boost ?? 0.15),
         ),
         valid: true,
-        messageUrl: undefined,
       };
       newExtractions = [syntheticExtraction];
     }

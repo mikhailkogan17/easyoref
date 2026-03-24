@@ -99,7 +99,7 @@ function resolveAreaProximity(
   monitoredAreas: string[],
 ): {
   relevant: boolean;
-  sameZone: string | null;
+  sameZone: string | undefined;
   monitoredMatch: string[];
   reasoning: string;
 } {
@@ -113,7 +113,7 @@ function resolveAreaProximity(
     ) {
       return {
         relevant: true,
-        sameZone: null,
+        sameZone: undefined,
         monitoredMatch: [m],
         reasoning: `"${mentioned}" directly matches monitored area "${m}"`,
       };
@@ -179,7 +179,7 @@ function resolveAreaProximity(
 
   return {
     relevant: false,
-    sameZone: null,
+    sameZone: undefined,
     monitoredMatch: [],
     reasoning:
       `"${mentioned}" could not be matched to any monitored area ` +

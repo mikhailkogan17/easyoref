@@ -13,7 +13,13 @@
  *   collectAndFilter → extract → vote → [clarify → revote] → editMessage
  */
 
-import { Annotation, MemorySaver, StateGraph } from "@langchain/langgraph";
+import {
+  MemorySaver,
+  ReducedValue,
+  StateGraph,
+  StateSchema,
+} from "@langchain/langgraph";
+import { z } from "zod";
 import { config } from "../config.js";
 import * as logger from "../logger.js";
 import { runClarify } from "./clarify.js";
@@ -26,43 +32,47 @@ import {
 import { buildChannelTracking } from "./filters.js";
 import { editMessage } from "./message.js";
 import {
+  AlertTypeSchema,
+  ChannelTrackingSchema,
+  EnrichmentDataSchema,
+  RunEnrichmentInputSchema,
+  TelegramMessageSchema,
+  ValidatedExtractionSchema,
+  VotedResultSchema,
+  createEmptyEnrichmentData,
+  validateSafe,
+} from "./schemas.js";
+import {
   getActiveSession,
   getChannelPosts,
   getEnrichmentData,
   getLastUpdateTs,
   setLastUpdateTs,
-  type ChatMessage,
 } from "./store.js";
-import type {
-  AlertType,
-  ChannelTracking,
-  EnrichmentData,
-  TrackedMessage,
-  ValidatedExtraction,
-  VotedResult,
-} from "./types.js";
-import { emptyEnrichmentData } from "./types.js";
+import { emptyEnrichmentData, type TrackedMessage } from "./types.js";
 import { vote } from "./vote.js";
 
 // ── State ──────────────────────────────────────────────
 
-const AgentState = Annotation.Root({
-  alertId: Annotation<string>({ reducer: (_, b) => b }),
-  alertTs: Annotation<number>({ reducer: (_, b) => b }),
-  alertType: Annotation<AlertType>({ reducer: (_, b) => b }),
-  alertAreas: Annotation<string[]>({ reducer: (_, b) => b }),
-  chatId: Annotation<string>({ reducer: (_, b) => b }),
-  messageId: Annotation<number>({ reducer: (_, b) => b }),
-  isCaption: Annotation<boolean>({ reducer: (_, b) => b }),
-  currentText: Annotation<string>({ reducer: (_, b) => b }),
-  tracking: Annotation<ChannelTracking | null>({ reducer: (_, b) => b }),
-  extractions: Annotation<ValidatedExtraction[]>({ reducer: (_, b) => b }),
-  votedResult: Annotation<VotedResult | null>({ reducer: (_, b) => b }),
-  clarifyAttempted: Annotation<boolean>({ reducer: (_, b) => b }),
-  previousEnrichment: Annotation<EnrichmentData>({ reducer: (_, b) => b }),
-  monitoringLabel: Annotation<string | undefined>({ reducer: (_, b) => b }),
-  chatMessages: Annotation<ChatMessage[] | undefined>({
-    reducer: (_, b) => b,
+export const AgentState = new StateSchema({
+  alertId: z.string(),
+  alertTs: z.number(),
+  alertType: AlertTypeSchema,
+  alertAreas: z.array(z.string()),
+  chatId: z.string(),
+  messageId: z.number(),
+  isCaption: z.boolean(),
+  currentText: z.string(),
+  tracking: ChannelTrackingSchema.optional(),
+  extractions: new ReducedValue(z.array(ValidatedExtractionSchema), {
+    reducer: (previous, current) => [...previous, ...current],
+  }),
+  votedResult: VotedResultSchema.optional(),
+  clarifyAttempted: z.boolean().default(false),
+  previousEnrichment: EnrichmentDataSchema.optional(),
+  monitoringLabel: z.string().optional(),
+  telegramMessages: new ReducedValue(z.array(TelegramMessageSchema), {
+    reducer: (previous, current) => [...previous, ...current],
   }),
 });
 
@@ -81,7 +91,7 @@ async function collectAndFilter(
 
   if (posts.length === 0) {
     logger.info("Agent: no posts", { alertId: state.alertId });
-    return { tracking: null, previousEnrichment: prevEnrichment };
+    return { tracking: undefined, previousEnrichment: prevEnrichment };
   }
 
   const tracking = buildChannelTracking(posts, sessionStartTs, lastUpdateTs);
@@ -202,7 +212,7 @@ async function clarifyNode(
 
     return {
       extractions: [...state.extractions, ...result.newExtractions],
-      votedResult: null,
+      votedResult: undefined,
       clarifyAttempted: true,
     };
   } catch (err) {
@@ -226,7 +236,7 @@ async function editNode(
     chatId: state.chatId,
     messageId: state.messageId,
     isCaption: state.isCaption,
-    chatMessages: state.chatMessages,
+    telegramMessages: state.telegramMessages,
     currentText: state.currentText,
     votedResult: state.votedResult,
     previousEnrichment: state.previousEnrichment ?? emptyEnrichmentData(),
@@ -301,38 +311,33 @@ function buildGraph() {
 
 // ── Public API ─────────────────────────────────────────
 
-export interface RunEnrichmentInput {
-  alertId: string;
-  alertTs: number;
-  alertType: AlertType;
-  alertAreas: string[];
-  chatId: string;
-  messageId: number;
-  isCaption: boolean;
-  chatMessages?: ChatMessage[];
-  currentText: string;
-  monitoringLabel?: string;
-}
+export type { RunEnrichmentInput } from "./schemas.js";
+export { RunEnrichmentInputSchema };
 
-export async function runEnrichment(input: RunEnrichmentInput): Promise<void> {
+export async function runEnrichment(input: unknown): Promise<void> {
+  // Validate input against schema
+  const validation = validateSafe(RunEnrichmentInputSchema, input);
+  if (!validation.ok) {
+    logger.error("Enrichment: invalid input", { error: validation.error });
+    throw new Error(`Invalid enrichment input: ${validation.error}`);
+  }
+
+  const validInput = validation.data;
+
   await buildGraph().invoke(
     {
-      alertId: input.alertId,
-      alertTs: input.alertTs,
-      alertType: input.alertType,
-      alertAreas: input.alertAreas,
-      chatId: input.chatId,
-      messageId: input.messageId,
-      isCaption: input.isCaption,
-      chatMessages: input.chatMessages,
-      currentText: input.currentText,
-      tracking: null,
-      extractions: [],
-      votedResult: null,
-      clarifyAttempted: false,
-      previousEnrichment: emptyEnrichmentData(),
-      monitoringLabel: input.monitoringLabel,
+      alertId: validInput.alertId,
+      alertTs: validInput.alertTs,
+      alertType: validInput.alertType,
+      alertAreas: validInput.alertAreas,
+      chatId: validInput.chatId,
+      messageId: validInput.messageId,
+      isCaption: validInput.isCaption,
+      telegramMessages: validInput.telegramMessages,
+      currentText: validInput.currentText,
+      previousEnrichment: createEmptyEnrichmentData(),
+      monitoringLabel: validInput.monitoringLabel,
     },
-    { configurable: { thread_id: input.alertId } },
+    { configurable: { thread_id: validInput.alertId } },
   );
 }
