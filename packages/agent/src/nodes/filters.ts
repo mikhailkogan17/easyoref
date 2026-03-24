@@ -1,5 +1,5 @@
 /**
- * Deterministic pre-filters — zero LLM tokens.
+ * Filter Node — deterministic pre-filters, zero LLM tokens.
  *
  * Filters out noise:
  *   - Pikud HaOref area list "простыни" (high comma count)
@@ -10,8 +10,8 @@
  */
 
 import * as logger from "@easyoref/monitoring";
+import type { AgentStateType } from "../graph.js";
 import {
-  AgentState,
   ChannelPost,
   ChannelTracking,
   ChannelWithUpdates,
@@ -24,57 +24,37 @@ import {
 
 // ── Noise detectors ────────────────────────────────────
 
-const OREF_LINK_RE = /oref\.org\.il/i;
-const OREF_CHANNEL_RE = /pikud|פיקוד|oref/i;
-const IDF_CHANNEL_RE = /idf|צה"?ל|tsahal/i;
+const OREF_LINK_PATTERN = /oref\.org\.il/i;
+const OREF_CHANNEL_PATTERN = /pikud|פיקוד|oref/i;
+const IDF_CHANNEL_PATTERN = /idf|צה"?ל|tsahal/i;
 
-/**
- * Pikud HaOref "простыня" — area list with many commas.
- */
 function isAreaListNoise(text: string): boolean {
-  if (OREF_LINK_RE.test(text)) return true;
+  if (OREF_LINK_PATTERN.test(text)) return true;
   const commaCount = (text.match(/,/g) || []).length;
   return commaCount >= 8;
 }
 
-/**
- * Summary/recap posts with timestamp patterns.
- * Real-time intel doesn't contain multiple "(HH:MM)" timestamps
- * or "X минут/минуты" duration references.
- */
 function isSummaryPost(text: string): boolean {
-  // Multiple "(HH:MM)" timestamps in one post = recap/summary
   const timeParenCount = (text.match(/\(\d{1,2}:\d{2}\)/g) || []).length;
   if (timeParenCount >= 2) return true;
-  // "X минуты" / "X минут" — Russian time duration references (recap formatting)
   if (/\d+\s+минут[ыа]?\b/i.test(text)) return true;
   return false;
 }
 
-/**
- * IDF/Tsahal press releases — long official texts (>400 chars from IDF channels).
- */
 function isIdfPressRelease(channel: string, text: string): boolean {
-  if (!IDF_CHANNEL_RE.test(channel)) return false;
+  if (!IDF_CHANNEL_PATTERN.test(channel)) return false;
   return text.length > 400;
 }
 
-/**
- * Combined noise filter. Returns true if post should be filtered OUT.
- */
-export function isNoise(post: ChannelPost): boolean {
-  // Pikud HaOref channels with long posts are area lists
-  if (OREF_CHANNEL_RE.test(post.channel) && post.text.length > 300) return true;
-  // Area list spam (any channel)
+function isNoise(post: ChannelPost): boolean {
+  if (OREF_CHANNEL_PATTERN.test(post.channel) && post.text.length > 300) return true;
   if (isAreaListNoise(post.text)) return true;
-  // Summary/recap posts
   if (isSummaryPost(post.text)) return true;
-  // IDF press releases
   if (isIdfPressRelease(post.channel, post.text)) return true;
   return false;
 }
 
-// ── Channel tracking structure ─────────────────────────
+// ── Channel tracking ────────────────────────────────────
 
 function toTrackedMessage(post: ChannelPost): TrackedMessage {
   return {
@@ -85,96 +65,86 @@ function toTrackedMessage(post: ChannelPost): TrackedMessage {
   };
 }
 
-/**
- * Build ChannelTracking from session posts.
- *
- * Splits posts per channel into prev (already processed) and last (new).
- * Applies deterministic noise filter on all posts.
- * Only includes channels that have new (last) messages.
- */
-export function buildChannelTracking(
+function buildChannelTracking(
   posts: ChannelPost[],
-  sessionStartTs: number,
-  lastUpdateTs: number,
+  sessionStartTimestamp: number,
+  lastUpdateTimestamp: number,
 ): ChannelTracking {
   const channelMap = new Map<
     string,
-    { prev: TrackedMessage[]; last: TrackedMessage[] }
+    { previous: TrackedMessage[]; latest: TrackedMessage[] }
   >();
 
   for (const post of posts) {
     if (isNoise(post)) continue;
-    if (post.ts < sessionStartTs) continue;
+    if (post.ts < sessionStartTimestamp) continue;
 
     if (!channelMap.has(post.channel)) {
-      channelMap.set(post.channel, { prev: [], last: [] });
+      channelMap.set(post.channel, { previous: [], latest: [] });
     }
     const bucket = channelMap.get(post.channel)!;
-    const msg = toTrackedMessage(post);
+    const trackedMessage = toTrackedMessage(post);
 
-    if (lastUpdateTs > 0 && post.ts <= lastUpdateTs) {
-      bucket.prev.push(msg);
+    if (lastUpdateTimestamp > 0 && post.ts <= lastUpdateTimestamp) {
+      bucket.previous.push(trackedMessage);
     } else {
-      bucket.last.push(msg);
+      bucket.latest.push(trackedMessage);
     }
   }
 
-  const channels_with_updates: ChannelWithUpdates[] = [];
-  for (const [channel, { prev, last }] of channelMap) {
-    if (last.length > 0) {
-      channels_with_updates.push({
+  const channelsWithUpdates: ChannelWithUpdates[] = [];
+  for (const [channel, { previous, latest }] of channelMap) {
+    if (latest.length > 0) {
+      channelsWithUpdates.push({
         channel,
-        prev_tracked_messages: prev.sort((a, b) => a.timestamp - b.timestamp),
-        last_tracked_messages: last.sort((a, b) => a.timestamp - b.timestamp),
+        prev_tracked_messages: previous.sort(
+          (a, b) => a.timestamp - b.timestamp,
+        ),
+        last_tracked_messages: latest.sort(
+          (a, b) => a.timestamp - b.timestamp,
+        ),
       });
     }
   }
 
   return {
-    track_start_timestamp: sessionStartTs,
-    last_update_timestamp: lastUpdateTs,
-    channels_with_updates,
+    track_start_timestamp: sessionStartTimestamp,
+    last_update_timestamp: lastUpdateTimestamp,
+    channels_with_updates: channelsWithUpdates,
   };
 }
 
-/**
- * Node: collect posts + deterministic noise filter.
- */
-export async function collectAndFilter(
-  state: AgentState,
-): Promise<Partial<AgentState>> {
+// ── Node ───────────────────────────────────────────────
+
+export const filterNode = async (
+  state: AgentStateType,
+): Promise<Partial<AgentStateType>> => {
   const posts = await getChannelPosts(state.alertId);
-  const prevEnrichment = await getEnrichmentData();
+  const previousEnrichment = await getEnrichmentData();
   const session = await getActiveSession();
-  const sessionStartTs = session?.sessionStartTs ?? state.alertTs;
-  const lastUpdateTs = await getLastUpdateTs();
+  const sessionStartTimestamp = session?.sessionStartTs ?? state.alertTs;
+  const lastUpdateTimestamp = await getLastUpdateTs();
 
   if (posts.length === 0) {
     logger.info("Agent: no posts", { alertId: state.alertId });
-    return { tracking: undefined, previousEnrichment: prevEnrichment };
+    return { tracking: undefined, previousEnrichment };
   }
 
-  const tracking = buildChannelTracking(posts, sessionStartTs, lastUpdateTs);
+  const tracking = buildChannelTracking(
+    posts,
+    sessionStartTimestamp,
+    lastUpdateTimestamp,
+  );
 
   logger.info("Agent: channel tracking", {
     alertId: state.alertId,
     total_posts: posts.length,
     channels_with_updates: tracking.channels_with_updates.length,
     total_new_posts: tracking.channels_with_updates.reduce(
-      (s, c) => s + c.last_tracked_messages.length,
+      (total, channel) => total + channel.last_tracked_messages.length,
       0,
     ),
   });
 
-  return { tracking, previousEnrichment: prevEnrichment };
-}
-
-// ── Exported for testing ───────────────────────────────
-
-export const _test = {
-  isAreaListNoise,
-  isSummaryPost,
-  isIdfPressRelease,
-  isNoise,
-  toTrackedMessage,
-} as const;
+  return { tracking, previousEnrichment };
+};

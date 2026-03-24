@@ -1,16 +1,8 @@
 /**
  * LangGraph.js enrichment pipeline — phase-aware, time-validated.
  *
- * Lean orchestrator: connects filter → extract → vote → edit.
- * All logic lives in dedicated modules:
- *   - filters.ts:  deterministic noise filter, channel tracking
- *   - extract.ts:  cheap LLM pre-filter, expensive extraction, post-filter
- *   - vote.ts:     consensus voting (deterministic)
- *   - message.ts:  message building, Telegram editing
- *   - helpers.ts:  toIsraelTime, textHash
- *
  * Pipeline:
- *   collectAndFilter → extract → vote → [clarify → revote] → editMessage
+ *   filter → extract → vote → [clarify → revote] → edit
  */
 
 import * as logger from "@easyoref/monitoring";
@@ -24,17 +16,15 @@ import {
   VotedResultSchema,
   config,
   createEmptyEnrichmentData,
-  getActiveSession,
-  getChannelPosts,
-  getEnrichmentData,
-  getLastUpdateTs,
   setLastUpdateTs,
   validateSafe,
   type TrackedMessage,
 } from "@easyoref/shared";
 import {
+  END,
   MemorySaver,
   ReducedValue,
+  START,
   StateGraph,
   StateSchema,
 } from "@langchain/langgraph";
@@ -45,12 +35,10 @@ import {
   postFilter,
   type ExtractContext,
 } from "./extract.js";
-import { runClarify } from "./nodes/clarify.js";
-import { buildChannelTracking } from "./nodes/filters.js";
+import { clarifyNode } from "./nodes/clarify.js";
+import { filterNode } from "./nodes/filters.js";
 import { editMessage } from "./nodes/message.js";
-import { vote } from "./nodes/vote.js";
-
-// ── State ──────────────────────────────────────────────
+import { voteNode } from "./nodes/vote.js";
 
 export const AgentState = new StateSchema({
   alertId: z.string(),
@@ -74,40 +62,7 @@ export const AgentState = new StateSchema({
   }),
 });
 
-type AgentStateType = typeof AgentState.State;
-
-// ── Node: collect posts + deterministic noise filter ───
-
-async function collectAndFilter(
-  state: AgentStateType,
-): Promise<Partial<AgentStateType>> {
-  const posts = await getChannelPosts(state.alertId);
-  const prevEnrichment = await getEnrichmentData();
-  const session = await getActiveSession();
-  const sessionStartTs = session?.sessionStartTs ?? state.alertTs;
-  const lastUpdateTs = await getLastUpdateTs();
-
-  if (posts.length === 0) {
-    logger.info("Agent: no posts", { alertId: state.alertId });
-    return { tracking: undefined, previousEnrichment: prevEnrichment };
-  }
-
-  const tracking = buildChannelTracking(posts, sessionStartTs, lastUpdateTs);
-
-  logger.info("Agent: channel tracking", {
-    alertId: state.alertId,
-    total_posts: posts.length,
-    channels_with_updates: tracking.channels_with_updates.length,
-    total_new_posts: tracking.channels_with_updates.reduce(
-      (s, c) => s + c.last_tracked_messages.length,
-      0,
-    ),
-  });
-
-  return { tracking, previousEnrichment: prevEnrichment };
-}
-
-// ── Node: cheap LLM channel filter + expensive extraction ──
+export type AgentStateType = typeof AgentState.State;
 
 async function extractNode(
   state: AgentStateType,
@@ -119,7 +74,6 @@ async function extractNode(
     return { extractions: [] };
   }
 
-  // Step 1: cheap LLM — which channels have important military intel?
   const relevantChannels = await filterChannelsCheap(
     state.tracking,
     state.alertAreas,
@@ -134,15 +88,16 @@ async function extractNode(
     return { extractions: [] };
   }
 
-  // Step 2: collect posts from relevant channels only
   const postsToExtract: TrackedMessage[] = [];
-  for (const ch of state.tracking.channels_with_updates) {
+  for (const channel of state.tracking.channels_with_updates) {
     const match = relevantChannels.some(
       (rc) =>
-        rc === ch.channel || rc === `@${ch.channel}` || `@${rc}` === ch.channel,
+        rc === channel.channel ||
+        rc === `@${channel.channel}` ||
+        `@${rc}` === channel.channel,
     );
     if (match) {
-      postsToExtract.push(...ch.last_tracked_messages);
+      postsToExtract.push(...channel.last_tracked_messages);
     }
   }
 
@@ -153,8 +108,7 @@ async function extractNode(
     return { extractions: [] };
   }
 
-  // Step 3: expensive extraction with post-level dedup
-  const ctx: ExtractContext = {
+  const context: ExtractContext = {
     alertTs: state.alertTs,
     alertType: state.alertType,
     alertAreas: state.alertAreas,
@@ -162,67 +116,13 @@ async function extractNode(
     language: config.language,
     existingEnrichment: state.previousEnrichment,
   };
-  const raw = await extractPosts(postsToExtract, ctx);
-
-  // Step 4: deterministic post-filter
+  const raw = await extractPosts(postsToExtract, context);
   const filtered = postFilter(raw, state.alertId);
 
-  // Update timestamp for next job's dedup split
   await setLastUpdateTs(Date.now());
 
   return { extractions: filtered };
 }
-
-// ── Node: vote ─────────────────────────────────────────
-
-function voteNode(state: AgentStateType): Partial<AgentStateType> {
-  return { votedResult: vote(state.extractions, state.alertId) };
-}
-
-// ── Node: clarify (MCP tool calling) ───────────────────
-
-async function clarifyNode(
-  state: AgentStateType,
-): Promise<Partial<AgentStateType>> {
-  if (!state.votedResult) {
-    logger.info("Agent: clarify skipped — no voted result", {
-      alertId: state.alertId,
-    });
-    return { clarifyAttempted: true };
-  }
-
-  logger.info("Agent: clarify triggered", {
-    alertId: state.alertId,
-    confidence: state.votedResult.confidence,
-  });
-
-  try {
-    const result = await runClarify({
-      alertId: state.alertId,
-      alertAreas: state.alertAreas,
-      alertType: state.alertType,
-      alertTs: state.alertTs,
-      messageId: state.messageId,
-      currentText: state.currentText,
-      extractions: state.extractions,
-      votedResult: state.votedResult,
-    });
-
-    return {
-      extractions: [...state.extractions, ...result.newExtractions],
-      votedResult: undefined,
-      clarifyAttempted: true,
-    };
-  } catch (err) {
-    logger.error("Agent: clarify failed", {
-      alertId: state.alertId,
-      error: String(err),
-    });
-    return { clarifyAttempted: true };
-  }
-}
-
-// ── Node: edit Telegram message ────────────────────────
 
 async function editNode(
   state: AgentStateType,
@@ -244,8 +144,6 @@ async function editNode(
   return {};
 }
 
-// ── Conditional routing after vote ─────────────────────
-
 function shouldClarify(state: AgentStateType): "clarify" | "editMessage" {
   if (state.clarifyAttempted) return "editMessage";
   if (!config.agent.mcpTools) return "editMessage";
@@ -258,7 +156,6 @@ function shouldClarify(state: AgentStateType): "clarify" | "editMessage" {
     return "clarify";
   }
 
-  // Suspicious single-source: Lebanon for central Israel → verify
   const origins = state.votedResult.country_origins;
   if (
     origins &&
@@ -268,11 +165,11 @@ function shouldClarify(state: AgentStateType): "clarify" | "editMessage" {
     if (
       origins[0]!.name === "Lebanon" &&
       state.alertAreas.some(
-        (a) =>
-          a.includes("תל אביב") ||
-          a.includes("גוש דן") ||
-          a.includes("שרון") ||
-          a.includes("מרכז"),
+        (area) =>
+          area.includes("תל אביב") ||
+          area.includes("גוש דן") ||
+          area.includes("שרון") ||
+          area.includes("מרכז"),
       )
     ) {
       logger.info("Agent: routing to clarify (suspicious Lebanon origin)", {});
@@ -283,38 +180,33 @@ function shouldClarify(state: AgentStateType): "clarify" | "editMessage" {
   return "editMessage";
 }
 
-// ── Build graph ────────────────────────────────────────
-
 const checkpointer = new MemorySaver();
 
-function buildGraph() {
+export function buildGraph() {
   return new StateGraph(AgentState)
-    .addNode("collectAndFilter", collectAndFilter)
+    .addNode("filter", filterNode)
     .addNode("extract", extractNode)
     .addNode("vote", voteNode)
     .addNode("clarify", clarifyNode)
     .addNode("revote", voteNode)
-    .addNode("editMessage", editNode)
-    .addEdge("__start__", "collectAndFilter")
-    .addEdge("collectAndFilter", "extract")
+    .addNode("edit", editNode)
+    .addEdge(START, "filter")
+    .addEdge("filter", "extract")
     .addEdge("extract", "vote")
     .addConditionalEdges("vote", shouldClarify, {
       clarify: "clarify",
-      editMessage: "editMessage",
+      editMessage: "edit",
     })
     .addEdge("clarify", "revote")
-    .addEdge("revote", "editMessage")
-    .addEdge("editMessage", "__end__")
+    .addEdge("revote", "edit")
+    .addEdge("edit", END)
     .compile({ checkpointer });
 }
-
-// ── Public API ─────────────────────────────────────────
 
 export type { RunEnrichmentInput } from "@easyoref/shared";
 export { RunEnrichmentInputSchema };
 
 export async function runEnrichment(input: unknown): Promise<void> {
-  // Validate input against schema
   const validation = validateSafe(RunEnrichmentInputSchema, input);
   if (!validation.ok) {
     logger.error("Enrichment: invalid input", { error: validation.error });

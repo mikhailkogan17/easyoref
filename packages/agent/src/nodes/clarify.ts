@@ -143,7 +143,7 @@ function describeContradictions(
 
 // ── ReAct loop ────────────────────────────────────────
 
-export async function runClarify(input: ClarifyInput): Promise<ClarifyOutput> {
+async function runClarifyLoop(input: ClarifyInput): Promise<ClarifyOutput> {
   const llm = getClarifyLLM();
   const llmWithTools = llm.bindTools(clarifyTools as StructuredToolInterface[]);
 
@@ -369,3 +369,46 @@ export async function runClarify(input: ClarifyInput): Promise<ClarifyOutput> {
 
   return { newPosts, newExtractions, toolCallCount, clarified };
 }
+
+import type { AgentStateType } from "../graph.js";
+
+export const clarifyNode = async (
+  state: AgentStateType,
+): Promise<Partial<AgentStateType>> => {
+  if (!state.votedResult) {
+    logger.info("Agent: clarify skipped — no voted result", {
+      alertId: state.alertId,
+    });
+    return { clarifyAttempted: true };
+  }
+
+  logger.info("Agent: clarify triggered", {
+    alertId: state.alertId,
+    confidence: state.votedResult.confidence,
+  });
+
+  try {
+    const result = await runClarifyLoop({
+      alertId: state.alertId,
+      alertAreas: state.alertAreas,
+      alertType: state.alertType,
+      alertTs: state.alertTs,
+      messageId: state.messageId,
+      currentText: state.currentText,
+      extractions: state.extractions,
+      votedResult: state.votedResult,
+    });
+
+    return {
+      extractions: [...state.extractions, ...result.newExtractions],
+      votedResult: undefined,
+      clarifyAttempted: true,
+    };
+  } catch (err) {
+    logger.error("Agent: clarify failed", {
+      alertId: state.alertId,
+      error: String(err),
+    });
+    return { clarifyAttempted: true };
+  }
+};

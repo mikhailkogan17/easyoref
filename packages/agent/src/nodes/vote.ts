@@ -1,11 +1,12 @@
 /**
- * Consensus voting — deterministic, 0 tokens.
+ * Vote Node — consensus voting, deterministic, 0 tokens.
  *
  * Aggregates extraction results from multiple sources into a single
  * voted consensus using median, majority, and weighted confidence.
  */
 
 import * as logger from "@easyoref/monitoring";
+import type { AgentStateType } from "../graph.js";
 import type {
   CitedSource,
   QualCount,
@@ -13,93 +14,86 @@ import type {
   VotedResult,
 } from "@easyoref/shared";
 
-// ── Helpers ────────────────────────────────────────────
-
-/** Average weighted confidence across sources */
-function fieldConf(
-  srcs: Array<{ source_trust: number; confidence: number }>,
+function weightedConfidence(
+  sources: Array<{ source_trust: number; confidence: number }>,
 ): number {
-  if (srcs.length === 0) return 0;
+  if (sources.length === 0) return 0;
   return (
-    srcs.reduce((s, e) => s + e.source_trust * e.confidence, 0) / srcs.length
+    sources.reduce(
+      (accumulator, extraction) =>
+        accumulator + extraction.source_trust * extraction.confidence,
+      0,
+    ) / sources.length
   );
 }
 
-/** Mode (most frequent value) for QualCount fields */
-function modeQual(
-  srcs: Array<{ [k: string]: unknown }>,
+function modeQualification(
+  sources: Array<Record<string, unknown>>,
   key: string,
 ): QualCount | undefined {
-  const vals = srcs
-    .map((e) => e[key] as QualCount | undefined)
-    .filter((v): v is QualCount => v !== undefined);
-  if (vals.length === 0) return undefined;
-  const freq = new Map<QualCount, number>();
-  for (const v of vals) freq.set(v, (freq.get(v) ?? 0) + 1);
-  return [...freq.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+  const values = sources
+    .map((extraction) => extraction[key] as QualCount | undefined)
+    .filter((value): value is QualCount => value !== undefined);
+  if (values.length === 0) return undefined;
+  const frequency = new Map<QualCount, number>();
+  for (const value of values)
+    frequency.set(value, (frequency.get(value) ?? 0) + 1);
+  return [...frequency.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
 }
 
-/** Median reference number for qual fields */
-function medianQualNum(
-  srcs: Array<{ [k: string]: unknown }>,
+function medianQualificationNumber(
+  sources: Array<Record<string, unknown>>,
   key: string,
 ): number | undefined {
-  const vals = srcs
-    .map((e) => e[key] as number | undefined)
-    .filter((v): v is number => v !== undefined)
+  const values = sources
+    .map((extraction) => extraction[key] as number | undefined)
+    .filter((value): value is number => value !== undefined)
     .sort((a, b) => a - b);
-  return vals.length > 0 ? vals[Math.floor(vals.length / 2)] : undefined;
+  return values.length > 0
+    ? values[Math.floor(values.length / 2)]
+    : undefined;
 }
 
-// ── Vote ───────────────────────────────────────────────
-
-/**
- * Aggregate valid extractions into a single consensus result.
- * Returns undefined if no valid extractions.
- */
-export function vote(
+function aggregateVote(
   extractions: ValidatedExtraction[],
   alertId: string,
 ): VotedResult | undefined {
-  const valid = extractions.filter((e) => e.valid);
+  const valid = extractions.filter((extraction) => extraction.valid);
 
   if (valid.length === 0) return undefined;
 
-  // Assign 1-based citation indices
-  const indexed = valid.map((e, i) => ({ ...e, idx: i + 1 }));
-
-  const citedSources: CitedSource[] = indexed.map((e) => ({
-    index: e.idx,
-    channel: e.channel,
-    ...(e.messageUrl && { messageUrl: e.messageUrl }),
+  const indexed = valid.map((extraction, index) => ({
+    ...extraction,
+    citationIndex: index + 1,
   }));
 
-  // ETA: highest confidence source
-  const withEta = indexed
-    .filter((e) => e.eta_refined_minutes !== undefined)
-    .sort((a, b) => b.confidence - a.confidence);
-  const bestEta = withEta[0] ?? undefined;
+  const citedSources: CitedSource[] = indexed.map((extraction) => ({
+    index: extraction.citationIndex,
+    channel: extraction.channel,
+    ...(extraction.messageUrl && { messageUrl: extraction.messageUrl }),
+  }));
 
-  // Country: group unique values (case-insensitive dedup, preserve first casing)
-  const countryMap = new Map<
-    string,
-    { canonical: string; citations: number[] }
-  >();
-  for (const e of indexed) {
-    if (e.country_origin) {
-      const key = e.country_origin.toLowerCase();
+  const etaSources = indexed
+    .filter((extraction) => extraction.eta_refined_minutes !== undefined)
+    .sort((a, b) => b.confidence - a.confidence);
+  const bestEtaSource = etaSources[0];
+
+  const countryMap = new Map<string, { canonical: string; citations: number[] }>();
+  for (const extraction of indexed) {
+    if (extraction.country_origin) {
+      const key = extraction.country_origin.toLowerCase();
       const entry = countryMap.get(key);
       if (entry) {
-        entry.citations.push(e.idx);
+        entry.citations.push(extraction.citationIndex);
       } else {
         countryMap.set(key, {
-          canonical: e.country_origin,
-          citations: [e.idx],
+          canonical: extraction.country_origin,
+          citations: [extraction.citationIndex],
         });
       }
     }
   }
-  const country_origins =
+  const countryOrigins =
     countryMap.size > 0
       ? Array.from(countryMap.values()).map(({ canonical, citations }) => ({
           name: canonical,
@@ -107,211 +101,242 @@ export function vote(
         }))
       : undefined;
 
-  // Rocket count: range
-  const rocketSrcs = indexed.filter((e) => e.rocket_count !== undefined);
-  const rocketVals = rocketSrcs.map((e) => e.rocket_count as number);
-  const rocket_count_min =
-    rocketVals.length > 0 ? Math.min(...rocketVals) : undefined;
-  const rocket_count_max =
-    rocketVals.length > 0 ? Math.max(...rocketVals) : undefined;
-  const rocket_citations = rocketSrcs.map((e) => e.idx);
-  const rocket_confidence = fieldConf(rocketSrcs);
-
-  // Rocket detail: pick from highest-confidence source with a detail string
-  const detailSrcs = indexed
-    .filter((e) => e.rocket_detail)
-    .sort((a, b) => b.confidence - a.confidence);
-  const rocket_detail = detailSrcs[0]?.rocket_detail;
-
-  // Cassette: majority
-  const cassSrcs = indexed.filter((e) => e.is_cassette !== undefined);
-  const cassVals = cassSrcs.map((e) => e.is_cassette as boolean);
-  const is_cassette =
-    cassVals.length > 0
-      ? cassVals.filter(Boolean).length > cassVals.length / 2
-      : undefined;
-  const is_cassette_confidence = fieldConf(cassSrcs);
-
-  // Intercepted: median / qual
-  const interceptedSrcs = indexed.filter((e) => e.intercepted !== undefined);
-  const interceptedQualSrcs = indexed.filter(
-    (e) => e.intercepted_qual !== undefined,
+  const rocketSources = indexed.filter(
+    (extraction) => extraction.rocket_count !== undefined,
   );
-  const interceptedVals = interceptedSrcs
-    .map((e) => e.intercepted as number)
+  const rocketValues = rocketSources.map(
+    (extraction) => extraction.rocket_count as number,
+  );
+  const rocketCountMin =
+    rocketValues.length > 0 ? Math.min(...rocketValues) : undefined;
+  const rocketCountMax =
+    rocketValues.length > 0 ? Math.max(...rocketValues) : undefined;
+  const rocketCitations = rocketSources.map(
+    (extraction) => extraction.citationIndex,
+  );
+  const rocketConfidence = weightedConfidence(rocketSources);
+
+  const detailSources = indexed
+    .filter((extraction) => extraction.rocket_detail)
+    .sort((a, b) => b.confidence - a.confidence);
+  const rocketDetail = detailSources[0]?.rocket_detail;
+
+  const cassetteSources = indexed.filter(
+    (extraction) => extraction.is_cassette !== undefined,
+  );
+  const cassetteValues = cassetteSources.map(
+    (extraction) => extraction.is_cassette as boolean,
+  );
+  const isCassette =
+    cassetteValues.length > 0
+      ? cassetteValues.filter(Boolean).length > cassetteValues.length / 2
+      : undefined;
+  const cassetteConfidence = weightedConfidence(cassetteSources);
+
+  const interceptedSources = indexed.filter(
+    (extraction) => extraction.intercepted !== undefined,
+  );
+  const interceptedQualSources = indexed.filter(
+    (extraction) => extraction.intercepted_qual !== undefined,
+  );
+  const interceptedValues = interceptedSources
+    .map((extraction) => extraction.intercepted as number)
     .sort((a, b) => a - b);
   const intercepted =
-    interceptedVals.length > 0
-      ? interceptedVals[Math.floor(interceptedVals.length / 2)]
+    interceptedValues.length > 0
+      ? interceptedValues[Math.floor(interceptedValues.length / 2)]
       : undefined;
-  const intercepted_qual =
+  const interceptedQual =
     intercepted === undefined
-      ? modeQual(interceptedQualSrcs, "intercepted_qual")
+      ? modeQualification(interceptedQualSources, "intercepted_qual")
       : undefined;
-  const intercepted_qual_num = intercepted_qual
-    ? medianQualNum(interceptedQualSrcs, "intercepted_qual_num")
+  const interceptedQualNumber = interceptedQual
+    ? medianQualificationNumber(interceptedQualSources, "intercepted_qual_num")
     : undefined;
-  const intercepted_confidence = fieldConf(
-    interceptedSrcs.length > 0 ? interceptedSrcs : interceptedQualSrcs,
+  const interceptedConfidence = weightedConfidence(
+    interceptedSources.length > 0 ? interceptedSources : interceptedQualSources,
   );
 
-  // Sea impact
-  const seaSrcs = indexed.filter((e) => e.sea_impact !== undefined);
-  const seaQualSrcs = indexed.filter((e) => e.sea_impact_qual !== undefined);
-  const seaVals = seaSrcs
-    .map((e) => e.sea_impact as number)
-    .sort((a, b) => a - b);
-  const sea_impact =
-    seaVals.length > 0 ? seaVals[Math.floor(seaVals.length / 2)] : undefined;
-  const sea_impact_qual =
-    sea_impact === undefined
-      ? modeQual(seaQualSrcs, "sea_impact_qual")
-      : undefined;
-  const sea_impact_qual_num = sea_impact_qual
-    ? medianQualNum(seaQualSrcs, "sea_impact_qual_num")
-    : undefined;
-  const sea_confidence = fieldConf(seaSrcs.length > 0 ? seaSrcs : seaQualSrcs);
-
-  // Open area impact
-  const openSrcs = indexed.filter((e) => e.open_area_impact !== undefined);
-  const openQualSrcs = indexed.filter(
-    (e) => e.open_area_impact_qual !== undefined,
+  const seaSources = indexed.filter((extraction) => extraction.sea_impact !== undefined);
+  const seaQualSources = indexed.filter(
+    (extraction) => extraction.sea_impact_qual !== undefined,
   );
-  const openVals = openSrcs
-    .map((e) => e.open_area_impact as number)
+  const seaValues = seaSources
+    .map((extraction) => extraction.sea_impact as number)
     .sort((a, b) => a - b);
-  const open_area_impact =
-    openVals.length > 0 ? openVals[Math.floor(openVals.length / 2)] : undefined;
-  const open_area_impact_qual =
-    open_area_impact === undefined
-      ? modeQual(openQualSrcs, "open_area_impact_qual")
+  const seaImpact =
+    seaValues.length > 0
+      ? seaValues[Math.floor(seaValues.length / 2)]
       : undefined;
-  const open_area_impact_qual_num = open_area_impact_qual
-    ? medianQualNum(openQualSrcs, "open_area_impact_qual_num")
+  const seaImpactQual =
+    seaImpact === undefined
+      ? modeQualification(seaQualSources, "sea_impact_qual")
+      : undefined;
+  const seaImpactQualNumber = seaImpactQual
+    ? medianQualificationNumber(seaQualSources, "sea_impact_qual_num")
     : undefined;
-  const open_area_confidence = fieldConf(
-    openSrcs.length > 0 ? openSrcs : openQualSrcs,
+  const seaConfidence = weightedConfidence(
+    seaSources.length > 0 ? seaSources : seaQualSources,
   );
 
-  // Hits
-  const allHitsSrcs = indexed.filter((e) => e.hits_confirmed !== undefined);
-  const hitsVals = allHitsSrcs
-    .map((e) => e.hits_confirmed as number)
+  const openSources = indexed.filter(
+    (extraction) => extraction.open_area_impact !== undefined,
+  );
+  const openQualSources = indexed.filter(
+    (extraction) => extraction.open_area_impact_qual !== undefined,
+  );
+  const openValues = openSources
+    .map((extraction) => extraction.open_area_impact as number)
     .sort((a, b) => a - b);
-  const hits_confirmed =
-    hitsVals.length > 0 ? hitsVals[Math.floor(hitsVals.length / 2)] : undefined;
-  const hitsSrcs = allHitsSrcs.filter((e) => (e.hits_confirmed as number) > 0);
-  const hits_citations =
-    hitsSrcs.length > 0
-      ? hitsSrcs.map((e) => e.idx)
-      : allHitsSrcs.map((e) => e.idx);
-  const hits_confidence = fieldConf(allHitsSrcs);
+  const openAreaImpact =
+    openValues.length > 0
+      ? openValues[Math.floor(openValues.length / 2)]
+      : undefined;
+  const openAreaImpactQual =
+    openAreaImpact === undefined
+      ? modeQualification(openQualSources, "open_area_impact_qual")
+      : undefined;
+  const openAreaImpactQualNumber = openAreaImpactQual
+    ? medianQualificationNumber(openQualSources, "open_area_impact_qual_num")
+    : undefined;
+  const openAreaConfidence = weightedConfidence(
+    openSources.length > 0 ? openSources : openQualSources,
+  );
 
-  // Hit location & type & detail: highest-confidence source with hits > 0
-  const hitsWithLoc = hitsSrcs
-    .filter((e) => e.hit_location)
+  const allHitsSources = indexed.filter(
+    (extraction) => extraction.hits_confirmed !== undefined,
+  );
+  const hitsValues = allHitsSources
+    .map((extraction) => extraction.hits_confirmed as number)
+    .sort((a, b) => a - b);
+  const hitsConfirmed =
+    hitsValues.length > 0
+      ? hitsValues[Math.floor(hitsValues.length / 2)]
+      : undefined;
+  const positiveHitsSources = allHitsSources.filter(
+    (extraction) => (extraction.hits_confirmed as number) > 0,
+  );
+  const hitsCitations =
+    positiveHitsSources.length > 0
+      ? positiveHitsSources.map((extraction) => extraction.citationIndex)
+      : allHitsSources.map((extraction) => extraction.citationIndex);
+  const hitsConfidence = weightedConfidence(allHitsSources);
+
+  const hitsWithLocation = positiveHitsSources
+    .filter((extraction) => extraction.hit_location)
     .sort((a, b) => b.confidence - a.confidence);
-  const hit_location = hitsWithLoc[0]?.hit_location;
-  const hit_type = hitsWithLoc[0]?.hit_type;
+  const hitLocation = hitsWithLocation[0]?.hit_location;
+  const hitType = hitsWithLocation[0]?.hit_type;
 
-  // hit_detail: from highest-confidence source that has one
-  const hitsWithDetail = hitsSrcs
-    .filter((e) => e.hit_detail)
+  const hitsWithDetail = positiveHitsSources
+    .filter((extraction) => extraction.hit_detail)
     .sort((a, b) => b.confidence - a.confidence);
-  const hit_detail = hitsWithDetail[0]?.hit_detail;
+  const hitDetail = hitsWithDetail[0]?.hit_detail;
 
-  // No impacts: explicit confirmation from sources
-  const noImpactSrcs = allHitsSrcs.filter(
-    (e) => (e.hits_confirmed as number) === 0,
+  const noImpactSources = allHitsSources.filter(
+    (extraction) => (extraction.hits_confirmed as number) === 0,
   );
-  const no_impacts = noImpactSrcs.length > 0 && hits_confirmed === 0;
-  const no_impacts_citations = noImpactSrcs.map((e) => e.idx);
+  const noImpacts = noImpactSources.length > 0 && hitsConfirmed === 0;
+  const noImpactsCitations = noImpactSources.map(
+    (extraction) => extraction.citationIndex,
+  );
 
-  // Casualties
-  const casualtySrcs = indexed.filter((e) => e.casualties && e.casualties > 0);
-  const casualtyVals = casualtySrcs
-    .map((e) => e.casualties as number)
+  const casualtySources = indexed.filter(
+    (extraction) => extraction.casualties && extraction.casualties > 0,
+  );
+  const casualtyValues = casualtySources
+    .map((extraction) => extraction.casualties as number)
     .sort((a, b) => a - b);
   const casualties =
-    casualtyVals.length > 0
-      ? casualtyVals[Math.floor(casualtyVals.length / 2)]
+    casualtyValues.length > 0
+      ? casualtyValues[Math.floor(casualtyValues.length / 2)]
       : undefined;
-  const casualties_citations = casualtySrcs.map((e) => e.idx);
-  const casualties_confidence = fieldConf(casualtySrcs);
-
-  // Injuries
-  const injurySrcs = indexed.filter(
-    (e) => e.injuries !== undefined && (e.injuries as number) > 0,
+  const casualtiesCitations = casualtySources.map(
+    (extraction) => extraction.citationIndex,
   );
-  const injuryVals = injurySrcs
-    .map((e) => e.injuries as number)
+  const casualtiesConfidence = weightedConfidence(casualtySources);
+
+  const injurySources = indexed.filter(
+    (extraction) =>
+      extraction.injuries !== undefined && (extraction.injuries as number) > 0,
+  );
+  const injuryValues = injurySources
+    .map((extraction) => extraction.injuries as number)
     .sort((a, b) => a - b);
   const injuries =
-    injuryVals.length > 0
-      ? injuryVals[Math.floor(injuryVals.length / 2)]
+    injuryValues.length > 0
+      ? injuryValues[Math.floor(injuryValues.length / 2)]
       : undefined;
-  const injuries_citations = injurySrcs.map((e) => e.idx);
-  const injuries_confidence = fieldConf(injurySrcs);
+  const injuriesCitations = injurySources.map(
+    (extraction) => extraction.citationIndex,
+  );
+  const injuriesConfidence = weightedConfidence(injurySources);
 
-  // Injuries cause: majority vote — "rocket" beats "rushing_to_shelter" if tie
-  const injuryCauseVals = injurySrcs
-    .map((e) => e.injuries_cause)
-    .filter((v): v is "rocket" | "rushing_to_shelter" => v !== undefined);
-  const rocketCauseCount = injuryCauseVals.filter((v) => v === "rocket").length;
-  const shelterCauseCount = injuryCauseVals.filter(
-    (v) => v === "rushing_to_shelter",
+  const injuryCauseValues = injurySources
+    .map((extraction) => extraction.injuries_cause)
+    .filter(
+      (value): value is "rocket" | "rushing_to_shelter" =>
+        value !== undefined,
+    );
+  const rocketCauseCount = injuryCauseValues.filter(
+    (value) => value === "rocket",
   ).length;
-  const injuries_cause =
-    injuryCauseVals.length === 0
+  const shelterCauseCount = injuryCauseValues.filter(
+    (value) => value === "rushing_to_shelter",
+  ).length;
+  const injuriesCause =
+    injuryCauseValues.length === 0
       ? undefined
       : rocketCauseCount >= shelterCauseCount
-      ? "rocket"
-      : "rushing_to_shelter";
+        ? "rocket"
+        : "rushing_to_shelter";
 
-  // Overall weighted confidence
   const totalWeight = indexed.reduce(
-    (s, e) => s + e.source_trust * e.confidence,
+    (accumulator, extraction) =>
+      accumulator + extraction.source_trust * extraction.confidence,
     0,
   );
-  const weightedConf = totalWeight / indexed.length;
+  const weightedConfidenceValue = totalWeight / indexed.length;
 
   const voted: VotedResult = {
-    eta_refined_minutes: bestEta?.eta_refined_minutes,
-    eta_citations: bestEta ? [bestEta.idx] : [],
-    country_origins: country_origins ?? [],
-    rocket_count_min,
-    rocket_count_max,
-    rocket_citations,
-    rocket_confidence,
-    rocket_detail,
-    is_cassette,
-    is_cassette_confidence,
+    eta_refined_minutes: bestEtaSource?.eta_refined_minutes,
+    eta_citations: bestEtaSource ? [bestEtaSource.citationIndex] : [],
+    country_origins: countryOrigins ?? [],
+    rocket_count_min: rocketCountMin,
+    rocket_count_max: rocketCountMax,
+    rocket_citations: rocketCitations,
+    rocket_confidence: rocketConfidence,
+    rocket_detail: rocketDetail,
+    is_cassette: isCassette,
+    is_cassette_confidence: cassetteConfidence,
     intercepted,
-    intercepted_qual,
-    intercepted_confidence,
-    sea_impact,
-    sea_impact_qual,
-    sea_confidence,
-    open_area_impact,
-    open_area_impact_qual,
-    open_area_confidence,
-    hits_confirmed,
-    hits_citations,
-    hits_confidence,
-    hit_location,
-    hit_type,
-    hit_detail,
-    no_impacts,
-    no_impacts_citations,
-    intercepted_citations: interceptedSrcs.map((e) => e.idx),
+    intercepted_qual: interceptedQual,
+    intercepted_confidence: interceptedConfidence,
+    sea_impact: seaImpact,
+    sea_impact_qual: seaImpactQual,
+    sea_confidence: seaConfidence,
+    open_area_impact: openAreaImpact,
+    open_area_impact_qual: openAreaImpactQual,
+    open_area_confidence: openAreaConfidence,
+    hits_confirmed: hitsConfirmed,
+    hits_citations: hitsCitations,
+    hits_confidence: hitsConfidence,
+    hit_location: hitLocation,
+    hit_type: hitType,
+    hit_detail: hitDetail,
+    no_impacts: noImpacts,
+    no_impacts_citations: noImpactsCitations,
+    intercepted_citations: interceptedSources.map(
+      (extraction) => extraction.citationIndex,
+    ),
     casualties,
-    casualties_citations,
-    casualties_confidence,
+    casualties_citations: casualtiesCitations,
+    casualties_confidence: casualtiesConfidence,
     injuries,
-    injuries_cause,
-    injuries_citations,
-    injuries_confidence,
-    confidence: Math.round(weightedConf * 100) / 100,
+    injuries_cause: injuriesCause,
+    injuries_citations: injuriesCitations,
+    injuries_confidence: injuriesConfidence,
+    confidence: Math.round(weightedConfidenceValue * 100) / 100,
     sources_count: indexed.length,
     citedSources,
   };
@@ -319,3 +344,11 @@ export function vote(
   logger.info("Agent: voted", { alertId, voted });
   return voted;
 }
+
+export const voteNode = (
+  state: AgentStateType,
+): Partial<AgentStateType> => {
+  return { votedResult: aggregateVote(state.extractions, state.alertId) };
+};
+
+export const vote = aggregateVote;
