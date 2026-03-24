@@ -13,37 +13,38 @@
  * No LLM needed — purely deterministic matching for <1s latency.
  */
 
-import { Bot } from "grammy";
-import { createServer } from "node:http";
-import { startMonitor, stopMonitor } from "./agent/gramjs-monitor.js";
-import { enqueueEnrich } from "./agent/queue.js";
-import { closeRedis } from "./agent/redis.js";
 import {
   buildEnrichedMessage,
+  enqueueEnrich,
   MONITORING_RE,
+  startEnrichWorker,
+  stopEnrichWorker,
   stripMonitoring,
-} from "./agent/message.js";
+} from "@easyoref/agent";
+import { startMonitor, stopMonitor } from "@easyoref/gramjs";
+import * as logger from "@easyoref/monitoring";
 import {
+  ActiveSession,
+  AlertType,
+  AlertTypeConfig,
   clearSession,
+  closeRedis,
+  config,
   getActiveSession,
   getEnrichmentData,
-  PHASE_ENRICH_DELAY_MS,
-  PHASE_INITIAL_DELAY_MS,
-  saveAlertMeta,
-  setActiveSession,
-  type ActiveSession,
-  type TelegramMessage,
-} from "./agent/store.js";
-import { startEnrichWorker, stopEnrichWorker } from "./agent/worker.js";
-import { config, type AlertTypeConfig } from "./config.js";
-import { initGifState, pickGif } from "./gif-state.js";
-import {
   getLanguagePack,
   initTranslations,
+  PHASE_ENRICH_DELAY_MS,
+  PHASE_INITIAL_DELAY_MS,
   resolveCityIds,
+  saveAlertMeta,
+  setActiveSession,
+  TelegramMessage,
   translateAreas,
-} from "./i18n.js";
-import * as logger from "./logger.js";
+} from "@easyoref/shared";
+import { Bot } from "grammy";
+import { createServer } from "node:http";
+import { initGifState, pickGif } from "./gif-state.js";
 
 const langPack = getLanguagePack(config.language);
 
@@ -76,8 +77,6 @@ function matchedAreaLabel(alertAreas: string[]): string {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Alert Type Classification
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-type AlertType = "early_warning" | "siren" | "resolved";
 
 /** Map internal AlertType → YAML config key */
 const ALERT_TYPE_TO_CONFIG: Record<AlertType, AlertTypeConfig> = {

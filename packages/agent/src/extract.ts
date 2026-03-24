@@ -106,7 +106,7 @@ export async function filterChannelsCheap(
               `  [${toIsraelTime(m.timestamp)}] ${m.text.slice(0, 200)}`,
           )
           .join("\n");
-        return `${ch.channel} (${ch.last_tracked_messages.length} new):\n${messages}`;
+         return `${ch.channel} (${ch.last_tracked_messages.length} new):\n${messages}`;
       },
     )
     .join("\n\n");
