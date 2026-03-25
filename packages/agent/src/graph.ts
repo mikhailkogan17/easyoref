@@ -57,7 +57,7 @@
  *    to use rather than a hardcoded threshold.
  *
  * 3. Carry-forward: previousEnrichment preserves data between phases.
- *    If origin was confirmed in early_warning, it carries to siren/resolved.
+ *    If origin was confirmed in early_warning, it carries to red_alert/resolved.
  *
  * 4. Time validation: LLM instructions emphasize checking if sources
  *    are about THIS alert vs. previous attacks. Critical for accuracy.

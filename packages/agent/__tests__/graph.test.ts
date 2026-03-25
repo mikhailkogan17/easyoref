@@ -610,7 +610,7 @@ describe("buildEnrichedMessage", () => {
     expect(resultSiren).not.toContain("Пострадавшие:");
   });
 
-  it("does not insert early warning time in siren phase (replaced by reply chain)", () => {
+  it("does not insert early warning time in red_alert phase (replaced by reply chain)", () => {
     const enrichment = emptyEnrichmentData;
     enrichment.earlyWarningTime = "17:55";
 

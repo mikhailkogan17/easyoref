@@ -2,7 +2,7 @@
  * Session-based alert state store — Redis operations.
  *
  * A "session" spans the lifecycle of one attack event:
- *   early_warning → (optional siren) → resolved → +10 min tail
+ *   early_warning → (optional red_alert) → resolved → +10 min tail
  *
  * Keys:
  *   session:active        — ActiveSession JSON         TTL 45min

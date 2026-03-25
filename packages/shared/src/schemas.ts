@@ -549,7 +549,7 @@ export const EnrichmentDataSchema = z.object({
     .string()
     .optional()
     .describe(
-      'Time early_warning was received (for siren "Раннее: было в HH:MM")',
+      'Time early_warning was received (for red_alert: "Раннее: было в HH:MM")',
     ),
   lastEditHash: z
     .string()

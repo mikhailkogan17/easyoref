@@ -414,7 +414,7 @@ describe("vote", () => {
 // ── buildEnrichmentFromVote (carry-forward) ────────────
 
 describe("buildEnrichmentFromVote", () => {
-  it("carries forward origin from early_warning to siren", () => {
+  it("carries forward origin from early_warning to red_alert", () => {
     const earlyEnrichment = emptyEnrichmentData;
     earlyEnrichment.origin = "Иран";
     earlyEnrichment.originCites = [
@@ -540,7 +540,7 @@ describe("buildEnrichedMessage", () => {
   });
 
   it("does NOT show early warning time for siren phase (replaced by reply chain)", () => {
-    const sirenMessage = [
+    const redAlertMessage = [
       "<b>🚨 Сирена</b>",
       "",
       "<b>Район:</b> Тель-Авив — Южный район и Яффо",
@@ -554,7 +554,7 @@ describe("buildEnrichedMessage", () => {
     enrichment.earlyWarningTime = "16:30";
 
     const result = buildEnrichedMessage(
-      sirenMessage,
+      redAlertMessage,
       "red_alert",
       ALERT_TS,
       enrichment,
@@ -599,7 +599,7 @@ describe("buildEnrichedMessage", () => {
   });
 
   it("does NOT show casualties in siren phase", () => {
-    const sirenMessage = [
+    const redAlertMessage = [
       "<b>🚨 Сирена</b>",
       "",
       "<b>Район:</b> Тель-Авив — Южный район и Яффо",
@@ -612,7 +612,7 @@ describe("buildEnrichedMessage", () => {
     enrichment.casualtiesCites = [];
 
     const result = buildEnrichedMessage(
-      sirenMessage,
+      redAlertMessage,
       "red_alert",
       ALERT_TS,
       enrichment,
