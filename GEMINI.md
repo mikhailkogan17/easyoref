@@ -140,17 +140,19 @@ Unicode superscript citations (¹²³), absolute ETA (~HH:MM¹), inline key:valu
 
 ### Deployment
 
-- CI/CD: PR → merge → changesets version PR → merge → release.yml → npm publish (OIDC) + Docker push (ghcr.io, amd64+arm64)
-- **RPi production**: npm global install + systemd (homebridge-паттерн)
+- **RPi production**: Docker compose (recommended)
   ```bash
-  sudo npm install -g easyoref   # install / update
-  easyoref install                # create systemd service (first time)
-  easyoref restart                # after update
+  # Install (first time)
+  ssh pi@raspberrypi.local
+  npm i -g @easyoref/cli
+  easyoref init
+  
+  # Update
+  easyoref update
   ```
 - Config: `~/.easyoref/config.yaml` (created by `easyoref init`)
-- Redis: native `redis-server` (apt), NOT Docker
-- Logs: `easyoref logs` / `journalctl -u easyoref -f`
-- Docker image exists for `docker compose` local dev / CI only
+- Docker compose: local build on RPi (not GHCR)
+- Logs: `docker logs easyoref`
 
 ### ЗАПРЕЩЕНО (Lethal Laws)
 
@@ -164,28 +166,31 @@ Unicode superscript citations (¹²³), absolute ETA (~HH:MM¹), inline key:valu
 
 ---
 
-## Release & Deploy Pipeline (Manual Only)
+## Release & Deploy Pipeline
 
-### Overview
+### Release Flow
 
-Release is **manual-only** via `workflow_dispatch`. There is NO automatic release on push to main.
+```bash
+# Patch release (1.21.0 → 1.21.1)
+npm run release
 
+# Minor release (1.21.0 → 1.22.0)
+npm run release:minor
+
+# Major release (1.21.0 → 2.0.0)
+npm run release:major
 ```
-feature branch → PR → CI passes → merge to main
-                                        │
-                          (manually) gh workflow run release.yml
-                                        │
-                                  check-publish:
-                                  LOCAL_VER vs npm view
-                                        │ (if different)
-                                  ┌─────┴──────────────────────┐
-                                  │ npm publish --provenance    │  OIDC
-                                  │ GitHub Release + tag        │
-                                  │ Docker build+push (ghcr.io) │  amd64+arm64
-                                  └────────────────────────────┘
-                                        │
-                                  RPi: npm update + restart
+
+This does: bump version → git push → npm publish (all packages)
+
+### RPi Update
+
+```bash
+ssh pi@raspberrypi.local
+easyoref update
 ```
+
+This does: npm update → npm install -g @easyoref/cli → docker compose down → docker compose up --build -d
 
 ### Post-Implementation Checklist (MANDATORY)
 
@@ -217,58 +222,21 @@ After every fix, feature, or refactor — **always** execute the full pipeline:
    ```
 6. **RPi update** — see detailed algorithm below
 
-### RPi Update Algorithm (Step-by-Step)
+### RPi Update
 
-**Host:** `raspberrypi.local` | **User:** `pi` | **Password:** `Darwin1809`
+**Host:** `raspberrypi.local` | **User:** `pi`
 
 ```bash
-# 1. SSH into RPi
 ssh pi@raspberrypi.local
-
-# 2. Check current version BEFORE update
-easyoref --version
-
-# 3. Update the global npm package
-sudo npm update -g easyoref
-
-# 4. Verify new version installed
-easyoref --version
-# Expected: should match the version you just published (e.g. 1.18.1)
-
-# 5. Restart the systemd service
-easyoref restart
-
-# 6. Wait 5 seconds, then check service status
-sleep 5
-systemctl status easyoref
-# Expected: "active (running)"
-
-# 7. Check logs for healthy startup
-easyoref logs | head -30
-# Expected lines:
-#   "Bot initialized"
-#   "MTProto connected"
-#   "GramJS monitor started"
-#   No errors / no crash loops
-
-# 8. Health check via bot command (if /health exists)
-# Or verify by sending test alert or checking Telegram bot responds
-
-# 9. If version didn't update (npm cache issue):
-sudo npm cache clean --force
-sudo npm update -g easyoref
-easyoref restart
+easyoref update
 ```
 
-**Troubleshooting RPi:**
+**Troubleshooting:**
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| `easyoref --version` shows old version | npm cache | `sudo npm cache clean --force && sudo npm update -g easyoref` |
-| `systemctl status easyoref` → failed | Config breaking change | `easyoref logs` → check error, fix `~/.easyoref/config.yaml` |
-| `easyoref restart` → "not found" | npm global bin not in PATH | `export PATH=$PATH:$(npm -g bin)` or reinstall with `sudo npm i -g easyoref` |
-| MTProto not connecting | session_string expired | Re-auth: `npx easyoref auth` or update session in config.yaml |
-| Redis connection refused | redis-server not running | `sudo systemctl start redis-server` |
+| Symptom | Fix |
+|---|---|
+| Container not starting | `docker logs easyoref` |
+| Old version | `docker compose build --no-cache` |
 
 ### General Troubleshooting
 
@@ -281,8 +249,6 @@ easyoref restart
 
 ### CRITICAL RULES
 
-- **NEVER** run `npm publish` locally — CI does it via OIDC
-- **NEVER** run `git tag` manually before merge — CI creates tags via GitHub Release
-- **NEVER** run `docker build` locally for production — CI builds multi-arch
-- Manual `git tag` BEFORE merge causes tag conflict → failed release
-- RPi deploy is ALWAYS via `npm update -g` + systemd, NEVER via Docker or git clone
+- **NEVER** run `npm publish` locally — use `npm run release`
+- RPi deploy is ALWAYS via `easyoref update`, NEVER via manual docker commands
+- Docker compose builds locally on RPi (not from GHCR)
