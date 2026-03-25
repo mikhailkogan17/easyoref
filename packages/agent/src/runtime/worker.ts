@@ -3,7 +3,7 @@
  *
  * Session-aware scheduling:
  *   early_warning → every 20s, up to 30 min
- *   siren         → every 20s, up to 15 min
+ *   red_alert     → every 20s, up to 15 min
  *   resolved      → every 60s, up to 10 min (tail — detailed intel)
  *
  * After each job, checks the session phase and re-enqueues

@@ -128,11 +128,7 @@ const shouldClarify = (state: AgentStateType): "clarify" | "edit" => {
   }
 
   const origins = state.votedResult.countryOrigins;
-  if (
-    origins &&
-    origins.length === 1 &&
-    state.votedResult.sourcesCount === 1
-  ) {
+  if (origins && origins.length === 1 && state.votedResult.sourcesCount === 1) {
     if (
       origins[0]!.name === "Lebanon" &&
       state.alertAreas.some(

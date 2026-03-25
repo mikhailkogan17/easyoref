@@ -1,0 +1,33 @@
+# Production Dockerfile (use pre-built files)
+FROM node:22-alpine
+
+WORKDIR /app
+
+# Copy pre-built files and dependencies
+COPY packages/bot/dist ./packages/bot/dist
+COPY packages/bot/package.json ./packages/bot/
+COPY packages/shared/dist ./packages/shared/dist
+COPY packages/shared/package.json ./packages/shared/
+COPY package.json package-lock.json* ./
+
+# Install production deps only
+RUN npm ci --workspace=packages/bot --omit=dev --ignore-scripts --legacy-peer-deps
+
+# Copy config file (user must supply config.yaml at build or mount)
+COPY config.yaml* ./
+
+# Persistent data directory (mount volume here)
+RUN mkdir -p /app/data
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:3100/health || exit 1
+
+# Non-root user
+RUN addgroup -g 1001 -S easyoref && \
+    adduser -S easyoref -u 1001 -G easyoref && \
+    chown -R easyoref:easyoref /app/data
+USER easyoref
+
+EXPOSE 3100
+CMD ["node", "packages/bot/dist/bin.js"]

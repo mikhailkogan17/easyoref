@@ -4,19 +4,16 @@
 
 import * as logger from "@easyoref/monitoring";
 import {
-  ExtractionResultSchema,
-  FilterOutputSchema,
-  type AlertType,
-  type NewsMessage,
-  type ValidatedExtraction,
-} from "@easyoref/shared";
-import {
   config,
+  ExtractionResultSchema,
   getCachedExtractions,
   saveCachedExtractions,
   setLastUpdateTs,
   textHash,
   toIsraelTime,
+  type AlertType,
+  type NewsMessage,
+  type ValidatedExtraction,
 } from "@easyoref/shared";
 import { createAgent, providerStrategy } from "langchain";
 import type { AgentStateType } from "../graph.js";
@@ -38,7 +35,7 @@ MANDATORY METADATA: time_relevance, region_relevance, confidence, source_trust, 
 
 PHASE-SPECIFIC:
 - early_warning: Focus on country_origin, eta_refined_minutes, rocket_count, is_cassette. NOT: intercepted, hits, casualties.
-- siren: Focus on country_origin, rocket_count, intercepted, sea_impact, open_area_impact. NOT: hits, casualties.
+- red_alert: Focus on country_origin, rocket_count, intercepted, sea_impact, open_area_impact. NOT: hits, casualties.
 - resolved: All fields valid. Prioritize confirmed official reports.
 
 RULES:
@@ -138,14 +135,18 @@ export const extractNode = async (
     .map((channel) => {
       const messages = channel.unprocessedMessages
         .map((message) => {
-          return `  [${toIsraelTime(message.timestamp)}] ${message.text.slice(0, 200)}`;
+          return `  [${toIsraelTime(message.timestamp)}] ${message.text.slice(
+            0,
+            200,
+          )}`;
         })
         .join("\n");
       return `${channel.channel} (${channel.unprocessedMessages.length} new):\n${messages}`;
     })
     .join("\n\n");
 
-  const regionHint = state.alertAreas.length > 0 ? state.alertAreas.join(", ") : "Israel";
+  const regionHint =
+    state.alertAreas.length > 0 ? state.alertAreas.join(", ") : "Israel";
   const alertTime = toIsraelTime(state.alertTs);
   const userPrompt = `Alert: ${regionHint} at ${alertTime}, phase: ${state.alertType}\n\nChannels:\n${channelSummaries}`;
 
@@ -218,9 +219,10 @@ export const extractNode = async (
   if (state.previousEnrichment?.intercepted) {
     enrichCtxParts.push(`Intercepted: ${state.previousEnrichment.intercepted}`);
   }
-  const enrichCtxLine = enrichCtxParts.length > 0
-    ? `EXISTING ENRICHMENT: ${enrichCtxParts.join(", ")}\n`
-    : "";
+  const enrichCtxLine =
+    enrichCtxParts.length > 0
+      ? `EXISTING ENRICHMENT: ${enrichCtxParts.join(", ")}\n`
+      : "";
 
   const newResults = await Promise.all(
     newPosts.map(async (post): Promise<ValidatedExtraction> => {
@@ -230,8 +232,8 @@ export const extractNode = async (
         postAgeMin > 0
           ? `(${postAgeMin} min BEFORE alert)`
           : postAgeMin < 0
-            ? `(${Math.abs(postAgeMin)} min AFTER alert)`
-            : "(same time as alert)";
+          ? `(${Math.abs(postAgeMin)} min AFTER alert)`
+          : "(same time as alert)";
 
       const contextHeader =
         `${phaseInstructions}\n\n` +
@@ -244,7 +246,11 @@ export const extractNode = async (
 
       try {
         const result = await extractAgent.invoke({
-          messages: [`${contextHeader}Channel: ${post.channelId}\n\nMessage:\n${post.text.slice(0, 800)}`],
+          messages: [
+            `${contextHeader}Channel: ${
+              post.channelId
+            }\n\nMessage:\n${post.text.slice(0, 800)}`,
+          ],
         });
 
         const extracted = result.structuredResponse;
