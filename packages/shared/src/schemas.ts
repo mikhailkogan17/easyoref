@@ -125,6 +125,32 @@ export const FilterOutputSchema = z.object({
 export type FilterOutput = z.infer<typeof FilterOutputSchema>;
 
 // ─────────────────────────────────────────────────────────
+// Insight Types (discriminated union for structured extraction)
+// ─────────────────────────────────────────────────────────
+
+export const InsightKindSchema = z.enum([
+  "rocket_impact",
+  "rocket_interception",
+  "location",
+  "casualty",
+  "injury",
+  "eta_minutes",
+  "cassette_munition",
+]);
+export type InsightKind = z.infer<typeof InsightKindSchema>;
+
+export const InsightSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("rocket_impact"), value: z.number().int().min(0) }),
+  z.object({ kind: z.literal("rocket_interception"), value: z.number().int().min(0) }),
+  z.object({ kind: z.literal("location"), value: z.string().min(1) }),
+  z.object({ kind: z.literal("casualty"), value: z.number().int().min(0) }),
+  z.object({ kind: z.literal("injury"), value: z.number().int().min(0) }),
+  z.object({ kind: z.literal("eta_minutes"), value: z.number().int().min(0) }),
+  z.object({ kind: z.literal("cassette_munition"), value: z.boolean() }),
+]);
+export type Insight = z.infer<typeof InsightSchema>;
+
+// ─────────────────────────────────────────────────────────
 // LLM extraction (single call per post)
 // ─────────────────────────────────────────────────────────
 
