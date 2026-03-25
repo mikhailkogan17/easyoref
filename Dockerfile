@@ -7,32 +7,32 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Copy workspace root + bot package
+# Copy root
 COPY package.json package-lock.json* tsconfig.base.json ./
-COPY packages/bot/package.json ./packages/bot/
-COPY packages/shared/package.json ./packages/shared/
-RUN npm ci --workspace=packages/bot --ignore-scripts --legacy-peer-deps
 
-COPY packages/bot/tsconfig.json ./packages/bot/
-COPY packages/bot/src/ ./packages/bot/src/
-COPY packages/shared/tsconfig.json ./packages/shared/
-COPY packages/shared/src/ ./packages/shared/src/
+# Copy all packages
+COPY packages/*/package.json ./
 
-RUN npm run build --workspace=packages/bot
+RUN npm ci --workspaces --ignore-scripts --legacy-peer-deps
+
+# Copy configs and sources
+COPY packages/*/tsconfig.json ./
+COPY packages/*/src/ ./packages/*/src/
+
+RUN npm run build
 
 # Stage 2: Production
 FROM node:22-alpine AS production
 
 WORKDIR /app
 
-# Install production deps only
+# Install production deps
 COPY package.json package-lock.json* tsconfig.base.json ./
-COPY packages/bot/package.json ./packages/bot/
-COPY packages/shared/package.json ./packages/shared/
-RUN npm ci --workspace=packages/bot --omit=dev --ignore-scripts --legacy-peer-deps
+COPY packages/*/package.json ./
+RUN npm ci --workspaces --omit=dev --ignore-scripts --legacy-peer-deps
 
 # Copy compiled output
-COPY --from=builder /app/packages/bot/dist ./packages/bot/dist
+COPY --from=builder /app/packages/*/dist ./packages/*/dist
 
 # Copy config file (user must supply config.yaml at build or mount)
 COPY config.yaml* ./
