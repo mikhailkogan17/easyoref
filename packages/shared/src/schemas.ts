@@ -404,6 +404,29 @@ export const VotedResultSchema = z.object({
 export type VotedResult = z.infer<typeof VotedResultSchema>;
 
 // ─────────────────────────────────────────────────────────
+// Simplified Vote Result (using Insight discriminatedUnion)
+// ─────────────────────────────────────────────────────────
+
+export const ConsensusInsightSchema = z.object({
+  insight: InsightSchema,
+  validExtractions: z.array(z.lazy(() => ValidatedExtractionSchema)).default([]),
+  avgConfidence: z.number().min(0).max(1),
+  sourcesCount: z.number().int().min(1),
+});
+export type ConsensusInsight = z.infer<typeof ConsensusInsightSchema>;
+
+export const VoteResultSchemaV2 = z.object({
+  insights: z.array(ConsensusInsightSchema).default([]),
+  needsClarify: z.array(z.lazy(() => ExtractionResultSchema)).default([]),
+  timestamp: z.number().int().min(0),
+});
+export type VoteResultV2 = z.infer<typeof VoteResultSchemaV2>;
+
+// Alias for backward compatibility
+export const VoteResultSchema = VotedResultSchema;
+export type VoteResult = VotedResult;
+
+// ─────────────────────────────────────────────────────────
 // Enrichment data (cross-phase persistence)
 // ─────────────────────────────────────────────────────────
 
