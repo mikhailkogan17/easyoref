@@ -37,7 +37,9 @@ EasyOref — בשביל הקרובים שלכם בחו״ל.
 
 ## התקנה
 
-### 1. מתקינים Node.js
+### התחלה מהירה (מומלץ)
+
+#### 1. מתקינים Node.js
 
 <details>
 <summary>Windows</summary>
@@ -67,36 +69,44 @@ sudo apt install -y nodejs
 
 </details>
 
-### 2. מגדירים טלגרם
+#### 2. מגדירים טלגרם
 
-1. שלחו הודעה ל-[@BotFather](https://t.me/BotFather) → `/newbot` → העתיקו את ה**טוקן**
-2. הוסיפו את הבוט לצ׳אט שלכם בטלגרם
-3. העבירו הודעה מהצ׳אט ל-[@userinfobot](https://t.me/userinfobot) → העתיקו את ה-**chat ID**
+1. שלחו ל-[@BotFather](https://t.me/BotFather) → `/newbot` → העתיקו את ה**טוקן**
+2. הוסיפו את הבוט לצ׳אט או ערוץ בטלגרם
+3. העבירו הודעה ל-[@userinfobot](https://t.me/userinfobot) → העתיקו את ה**chat ID**
 
-### 3. מצאו את ID העיר שלכם
+#### 3. מצאו את ID העיר שלכם
 
-פתחו את [cities.json](https://github.com/eladnava/pikud-haoref-api/blob/master/cities.json), חפשו את העיר שלכם, העתיקו את המספר מ-`id`.
+פתחו [cities.json](https://github.com/eladnava/pikud-haoref-api/blob/master/cities.json), חפשו עיר, העתיקו את ה-`id`.
 
 לדוגמה: `"id": 722` = תל אביב — דרום ויפו.
 
-### 4. הגדרות
+#### 4. התקנה והגדרה
 
 ```bash
-npx easyoref init
+npm install -g easyoref@latest
+easyoref init
 ```
 
-עונים על כמה שאלות — שפה, טוקן, chat ID ו-ID עיר. ההגדרות נשמרות ב-`~/.easyoref/config.yaml`.
+עונים על שאלות: שפה, bot_token, chat_id, city_ids. ההגדרות נשמרות ב-`~/.easyoref/config.yaml`.
 
-### 5. מריצים
+#### 5. התקנה כשירות מערכת (לעבודה רציפה)
 
 ```bash
-npx easyoref
+sudo HOME=$HOME easyoref install
+systemctl status easyoref
 ```
 
-**זהו.** הבוט ישלח הודעה לצ׳אט בכל התרעה של פיקוד העורף באזור שלכם.
+**זהו!** הבוט עובד 24/7 דרך systemd. לוגים: `easyoref logs`
 
-> הבוט צריך לרוץ כל הזמן — על RPi, שרת, או מחשב שלא כבוי.
-> מדריכים: [RPi](rpi.md) · [מקומי](local.md)
+### או הרצה חד-פעמית (לבדיקה)
+
+```bash
+easyoref
+```
+
+> לדיפלוי קבוע, השתמשו בשירות המערכת (שלב 5 למעלה).
+> מדריכים: [RPi Production](rpi.md) · [מקומי](local.md)
 
 ## איך זה עובד
 

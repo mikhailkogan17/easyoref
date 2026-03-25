@@ -38,12 +38,14 @@ EasyOref — для ваших близких за границей.
 
 ## Установка
 
-### 1. Установите Node.js
+### Быстрый старт (рекомендуется)
+
+#### 1. Установите Node.js
 
 <details>
 <summary>Windows</summary>
 
-Скачайте установщик с [nodejs.org](https://nodejs.org/) (LTS, 22+). Запустите, нажимайте «Next».
+Скачайте с [nodejs.org](https://nodejs.org/) (LTS, 22+). Запустите инсталлер, нажимайте «Next».
 
 </details>
 
@@ -68,36 +70,44 @@ sudo apt install -y nodejs
 
 </details>
 
-### 2. Подготовьте Telegram
+#### 2. Подготовьте Telegram
 
 1. Напишите [@BotFather](https://t.me/BotFather) → `/newbot` → скопируйте **токен**
-2. Добавьте бота в ваш чат или канал в Telegram
-3. Перешлите любое сообщение из чата в [@userinfobot](https://t.me/userinfobot) → скопируйте **chat ID**
+2. Добавьте бота в ваш чат или канал
+3. Перешлите сообщение в [@userinfobot](https://t.me/userinfobot) → скопируйте **chat ID**
 
-### 3. Найдите ID вашего города
+#### 3. Найдите ID вашего города
 
-Откройте [cities.json](https://github.com/eladnava/pikud-haoref-api/blob/master/cities.json), найдите свой город, скопируйте число из `id`.
+Откройте [cities.json](https://github.com/eladnava/pikud-haoref-api/blob/master/cities.json), найдите город, скопируйте `id`.
 
 Пример: `"id": 722` = Тель-Авив — Юг и Яффо.
 
-### 4. Запустите настройку
+#### 4. Установите и настройте
 
 ```bash
-npx easyoref init
+npm install -g easyoref@latest
+easyoref init
 ```
 
-Мастер установки спросит язык, токен, chat ID и ID города. Конфиг сохранится в `~/.easyoref/config.yaml`.
+Мастер попросит: язык, bot_token, chat_id, city_ids. Конфиг сохранится в `~/.easyoref/config.yaml`.
 
-### 5. Запустите бота
+#### 5. Установите как системный сервис (для постоянной работы)
 
 ```bash
-npx easyoref
+sudo HOME=$HOME easyoref install
+systemctl status easyoref
 ```
 
-**Готово.** Бот отправит сообщения в чат при каждой тревоге Службы Тыла в вашем районе.
+**Готово!** Бот работает 24/7 через systemd. Логи: `easyoref logs`
 
-> Бот должен работать постоянно — на Raspberry Pi, сервере, или компьютере который не выключается.
-> Подробнее: [RPi](rpi.md) · [Локально](local.md)
+### Или запустите один раз (для тестирования)
+
+```bash
+easyoref
+```
+
+> Для постоянного деплоя используйте системный сервис (шаг 5 выше).
+> Подробнее: [RPi Продакшен](rpi.md) · [Локально](local.md)
 
 ## Как это работает
 

@@ -39,12 +39,14 @@ Cell Broadcast alerts — for you in Israel.
 
 ## Install
 
-### 1. Install Node.js
+### Quick Start (Recommended)
+
+#### 1. Install Node.js
 
 <details>
 <summary>Windows</summary>
 
-Download the installer from [nodejs.org](https://nodejs.org/) (LTS, 22+). Run it, click "Next".
+Download from [nodejs.org](https://nodejs.org/) (LTS, 22+). Run installer, click "Next".
 
 </details>
 
@@ -69,36 +71,44 @@ sudo apt install -y nodejs
 
 </details>
 
-### 2. Set up Telegram
+#### 2. Set up Telegram
 
 1. Message [@BotFather](https://t.me/BotFather) → `/newbot` → copy the **token**
-2. Add the bot to your Telegram chat or channel
-3. Forward any message from that chat to [@userinfobot](https://t.me/userinfobot) → copy the **chat ID**
+2. Add bot to your Telegram chat
+3. Forward any message to [@userinfobot](https://t.me/userinfobot) → copy the **chat ID**
 
-### 3. Find your city ID
+#### 3. Find your city ID
 
-Open [cities.json](https://github.com/eladnava/pikud-haoref-api/blob/master/cities.json), find your city, copy the `id` number.
+Open [cities.json](https://github.com/eladnava/pikud-haoref-api/blob/master/cities.json), find your city, copy the `id`.
 
 Example: `"id": 722` = Tel Aviv — South & Jaffa.
 
-### 4. Run setup
+#### 4. Install & Configure
 
 ```bash
-npx easyoref init
+npm install -g easyoref@latest
+easyoref init
 ```
 
-The wizard asks for language, token, chat ID, and city ID. Config is saved to `~/.easyoref/config.yaml`.
+The wizard prompts for: language, bot_token, chat_id, city_ids. Config saved to `~/.easyoref/config.yaml`.
 
-### 5. Start the bot
+#### 5. Install as Service (Recommended for 24/7)
 
 ```bash
-npx easyoref
+sudo HOME=$HOME easyoref install
+systemctl status easyoref
 ```
 
-**Done.** The bot will message your chat whenever the Home Front Command issues an alert for your area.
+**Done!** Bot runs 24/7 via systemd. Logs: `easyoref logs`
 
-> The bot needs to run 24/7 — on a Raspberry Pi, server, or always-on computer.
-> Guides: [RPi](docs/rpi.md) · [Local](docs/local.md)
+### Or Run Once (Testing Only)
+
+```bash
+easyoref
+```
+
+> For persistent deployment, use systemd service (Step 5 above).
+> Guides: [RPi Production](docs/rpi.md) · [Local Development](docs/local.md)
 
 ## How it works
 
