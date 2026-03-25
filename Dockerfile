@@ -1,24 +1,11 @@
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # EasyOref Dockerfile — RPi build
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-# Stage 1: Build
-FROM node:22-alpine AS builder
+FROM node:22-alpine
 WORKDIR /app
-COPY package.json package-lock.json* tsconfig*.json ./
-RUN npm install --ignore-scripts --legacy-peer-deps
+COPY package.json package-lock.json* ./
 COPY packages packages
-RUN npm install --ignore-scripts --legacy-peer-deps
+COPY tsconfig*.json ./
+RUN npm install --legacy-peer-deps
 RUN npm run build
-
-# Stage 2: Production
-FROM node:22-alpine AS production
-WORKDIR /app
-COPY package.json package-lock.json* tsconfig*.json ./
-RUN npm install --omit=dev --ignore-scripts --legacy-peer-deps
-COPY packages packages
-RUN npm install --omit=dev --ignore-scripts --legacy-peer-deps
-COPY --from=builder /app .
 RUN mkdir -p /app/data && chown -R node:node /app/data
 USER node
 EXPOSE 3100
