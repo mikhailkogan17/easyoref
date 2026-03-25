@@ -25,38 +25,79 @@ export const QualitativeCountSchema = z.discriminatedUnion("type", [
 export type QualitativeCount = z.infer<typeof QualitativeCountSchema>;
 
 // ─────────────────────────────────────────────────────────
+// Source Message Types (input from Telegram channels)
+// ─────────────────────────────────────────────────────────
+
+export const SourceTypeSchema = z.enum([
+  "telegram_channel",
+  "web_scrape",
+  "manual",
+]);
+export type SourceType = z.infer<typeof SourceTypeSchema>;
+
+export const BaseSourceMessageSchema = z.object({
+  channelId: z.string().min(1),
+  sourceType: SourceTypeSchema,
+  timestamp: z.number().int().min(0),
+  text: z.string().min(1),
+  sourceUrl: z.url().optional(),
+});
+export type BaseSourceMessage = z.infer<typeof BaseSourceMessageSchema>;
+
+export const NewsMessageSchema = BaseSourceMessageSchema.extend({
+  sourceType: z.literal("telegram_channel"),
+  grammyMessageId: z.number().optional(),
+});
+export type NewsMessage = z.infer<typeof NewsMessageSchema>;
+
+// ─────────────────────────────────────────────────────────
+// Channel Types (source vs target)
+// ─────────────────────────────────────────────────────────
+
+export const NewsChannelSchema = z.object({
+  channelId: z.string().min(1),
+  channelName: z.string(),
+  language: z.string().min(2).max(5),
+  region: z.string().optional(),
+});
+export type NewsChannel = z.infer<typeof NewsChannelSchema>;
+
+export const TargetGroupSchema = z.object({
+  chatId: z.string().min(1),
+  groupName: z.string(),
+  subscribedRegions: z.array(z.string()),
+});
+export type TargetGroup = z.infer<typeof TargetGroupSchema>;
+
+// ─────────────────────────────────────────────────────────
 // Channel tracking (pre-graph structure)
 // ─────────────────────────────────────────────────────────
 
-export const TrackedMessageSchema = z.object({
-  timestamp: z.number().int().min(0),
-  text: z.string().min(1),
-  url: z.url().optional(),
+export const NewsChannelWithUpdatesSchema = z.object({
   channel: z.string().min(1),
-});
-export type TrackedMessage = z.infer<typeof TrackedMessageSchema>;
-
-export const ChannelWithUpdatesSchema = z.object({
-  channel: z.string().min(1),
-  prevTrackedMessages: z
-    .array(TrackedMessageSchema)
+  processedMessages: z
+    .array(NewsMessageSchema)
     .default([])
-    .describe(
-      "Posts from session start to last enrichment job (already processed)",
-    ),
-  lastTrackedMessages: z
-    .array(TrackedMessageSchema)
+    .describe("Already processed messages"),
+  unprocessedMessages: z
+    .array(NewsMessageSchema)
     .default([])
-    .describe("Posts since last enrichment job (new, need processing)"),
+    .describe("New messages pending processing"),
 });
-export type ChannelWithUpdates = z.infer<typeof ChannelWithUpdatesSchema>;
+export type NewsChannelWithUpdates = z.infer<typeof NewsChannelWithUpdatesSchema>;
 
 export const ChannelTrackingSchema = z.object({
   trackStartTimestamp: z.number().int().min(0),
   lastUpdateTimestamp: z.number().int().min(0),
-  channelsWithUpdates: z.array(ChannelWithUpdatesSchema).default([]),
+  channelsWithUpdates: z.array(NewsChannelWithUpdatesSchema).default([]),
 });
 export type ChannelTracking = z.infer<typeof ChannelTrackingSchema>;
+
+// Backward compatibility aliases (deprecated)
+export const TrackedMessageSchema = NewsMessageSchema;
+export type TrackedMessage = NewsMessage;
+export const ChannelWithUpdatesSchema = NewsChannelWithUpdatesSchema;
+export type ChannelWithUpdates = NewsChannelWithUpdates;
 
 // ─────────────────────────────────────────────────────────
 // Pre-filter (deterministic, zero tokens)

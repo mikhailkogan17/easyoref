@@ -8,7 +8,7 @@
 import * as logger from "@easyoref/monitoring";
 import type {
   CitedSource,
-  QualCount,
+  QualitativeCount,
   ValidatedExtraction,
   VotedResult,
 } from "@easyoref/shared";
@@ -30,12 +30,12 @@ function weightedConfidence(
 function modeQualification(
   sources: Array<Record<string, unknown>>,
   key: string,
-): QualCount | undefined {
+): QualitativeCount | undefined {
   const values = sources
-    .map((extraction) => extraction[key] as QualCount | undefined)
-    .filter((value): value is QualCount => value !== undefined);
+    .map((extraction) => extraction[key] as QualitativeCount | undefined)
+    .filter((value): value is QualitativeCount => value !== undefined);
   if (values.length === 0) return undefined;
-  const frequency = new Map<QualCount, number>();
+  const frequency = new Map<QualitativeCount, number>();
   for (const value of values)
     frequency.set(value, (frequency.get(value) ?? 0) + 1);
   return [...frequency.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];

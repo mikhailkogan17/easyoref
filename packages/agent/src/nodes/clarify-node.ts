@@ -5,7 +5,6 @@
 import * as logger from "@easyoref/monitoring";
 import {
   ClarifyOutputSchema,
-  config,
   pushSessionPost,
   type ChannelPost,
   type ValidatedExtraction,

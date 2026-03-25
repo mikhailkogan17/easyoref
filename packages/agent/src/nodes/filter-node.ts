@@ -6,8 +6,8 @@ import * as logger from "@easyoref/monitoring";
 import {
   type ChannelPost,
   type ChannelTracking,
-  type ChannelWithUpdates,
-  type TrackedMessage,
+  type NewsChannelWithUpdates,
+  type NewsMessage,
 } from "@easyoref/shared";
 import {
   config,
@@ -57,12 +57,13 @@ function isNoise(post: ChannelPost): boolean {
   return false;
 }
 
-function toTrackedMessage(post: ChannelPost): TrackedMessage {
+function toNewsMessage(post: ChannelPost): NewsMessage {
   return {
+    channelId: post.channel,
+    sourceType: "telegram_channel",
     timestamp: post.ts,
     text: post.text,
-    url: post.messageUrl,
-    channel: post.channel,
+    sourceUrl: post.messageUrl,
   };
 }
 
@@ -71,7 +72,7 @@ function buildChannelTracking(
   sessionStartTs: number,
   lastUpdateTs: number,
 ): ChannelTracking {
-  const channelMap = new Map<string, { previous: TrackedMessage[]; latest: TrackedMessage[] }>();
+  const channelMap = new Map<string, { previous: NewsMessage[]; latest: NewsMessage[] }>();
 
   for (const post of posts) {
     if (isNoise(post)) continue;
@@ -81,22 +82,22 @@ function buildChannelTracking(
       channelMap.set(post.channel, { previous: [], latest: [] });
     }
     const bucket = channelMap.get(post.channel)!;
-    const trackedMessage = toTrackedMessage(post);
+    const newsMessage = toNewsMessage(post);
 
     if (lastUpdateTs > 0 && post.ts <= lastUpdateTs) {
-      bucket.previous.push(trackedMessage);
+      bucket.previous.push(newsMessage);
     } else {
-      bucket.latest.push(trackedMessage);
+      bucket.latest.push(newsMessage);
     }
   }
 
-  const channelsWithUpdates: ChannelWithUpdates[] = [];
+  const channelsWithUpdates: NewsChannelWithUpdates[] = [];
   for (const [channel, { previous, latest }] of channelMap) {
     if (latest.length > 0) {
       channelsWithUpdates.push({
         channel,
-        prevTrackedMessages: previous.sort((a, b) => a.timestamp - b.timestamp),
-        lastTrackedMessages: latest.sort((a, b) => a.timestamp - b.timestamp),
+        processedMessages: previous.sort((a, b) => a.timestamp - b.timestamp),
+        unprocessedMessages: latest.sort((a, b) => a.timestamp - b.timestamp),
       });
     }
   }
@@ -129,7 +130,7 @@ export const filterNode = async (
     totalPosts: posts.length,
     channelsWithUpdates: tracking.channelsWithUpdates.length,
     totalNewPosts: tracking.channelsWithUpdates.reduce(
-      (total, channel) => total + channel.lastTrackedMessages.length,
+      (total, channel) => total + channel.unprocessedMessages.length,
       0,
     ),
   });

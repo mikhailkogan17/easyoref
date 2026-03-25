@@ -7,7 +7,7 @@ import {
   ExtractionResultSchema,
   FilterOutputSchema,
   type AlertType,
-  type TrackedMessage,
+  type NewsMessage,
   type ValidatedExtraction,
 } from "@easyoref/shared";
 import {
@@ -136,12 +136,12 @@ export const extractNode = async (
   const channels = state.tracking.channelsWithUpdates;
   const channelSummaries = channels
     .map((channel) => {
-      const messages = channel.lastTrackedMessages
+      const messages = channel.unprocessedMessages
         .map((message) => {
           return `  [${toIsraelTime(message.timestamp)}] ${message.text.slice(0, 200)}`;
         })
         .join("\n");
-      return `${channel.channel} (${channel.lastTrackedMessages.length} new):\n${messages}`;
+      return `${channel.channel} (${channel.unprocessedMessages.length} new):\n${messages}`;
     })
     .join("\n\n");
 
@@ -161,7 +161,7 @@ export const extractNode = async (
     return { extractions: [] };
   }
 
-  const postsToExtract: TrackedMessage[] = [];
+  const postsToExtract: NewsMessage[] = [];
   for (const channel of channels) {
     const match = relevantChannels.some(
       (rc: string) =>
@@ -170,7 +170,7 @@ export const extractNode = async (
         `@${rc}` === channel.channel,
     );
     if (match) {
-      postsToExtract.push(...channel.lastTrackedMessages);
+      postsToExtract.push(...channel.unprocessedMessages);
     }
   }
 
@@ -178,9 +178,9 @@ export const extractNode = async (
     return { extractions: [] };
   }
 
-  const postHashMap = new Map<string, TrackedMessage>();
+  const postHashMap = new Map<string, NewsMessage>();
   for (const post of postsToExtract) {
-    const hash = textHash(post.channel + "|" + post.text.slice(0, 800));
+    const hash = textHash(post.channelId + "|" + post.text.slice(0, 800));
     postHashMap.set(hash, post);
   }
 
@@ -188,7 +188,7 @@ export const extractNode = async (
   const cached = await getCachedExtractions(allHashes);
 
   const cachedResults: ValidatedExtraction[] = [];
-  const newPosts: TrackedMessage[] = [];
+  const newPosts: NewsMessage[] = [];
 
   for (const [hash, post] of postHashMap) {
     const cachedJson = cached.get(hash);
@@ -244,21 +244,21 @@ export const extractNode = async (
 
       try {
         const result = await extractAgent.invoke({
-          messages: [`${contextHeader}Channel: ${post.channel}\n\nMessage:\n${post.text.slice(0, 800)}`],
+          messages: [`${contextHeader}Channel: ${post.channelId}\n\nMessage:\n${post.text.slice(0, 800)}`],
         });
 
         const extracted = result.structuredResponse;
 
         return {
           ...extracted,
-          channel: post.channel,
-          messageUrl: post.url,
+          channel: post.channelId,
+          messageUrl: post.sourceUrl,
           timeRelevance: extracted?.timeRelevance ?? 0.5,
           valid: true,
         } as ValidatedExtraction;
       } catch {
         return {
-          channel: post.channel,
+          channel: post.channelId,
           regionRelevance: 0,
           sourceTrust: 0,
           tone: "neutral" as const,
@@ -273,7 +273,7 @@ export const extractNode = async (
 
   const cacheEntries: Record<string, string> = {};
   newPosts.forEach((post, i) => {
-    const hash = textHash(post.channel + "|" + post.text.slice(0, 800));
+    const hash = textHash(post.channelId + "|" + post.text.slice(0, 800));
     cacheEntries[hash] = JSON.stringify(newResults[i]);
   });
   await saveCachedExtractions(cacheEntries);

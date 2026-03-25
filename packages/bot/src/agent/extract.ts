@@ -98,15 +98,15 @@ export async function filterChannelsCheap(
     .map(
       (ch: {
         channel: string;
-        lastTrackedMessages: Array<{ timestamp: number; text: string }>;
+        unprocessedMessages: Array<{ timestamp: number; text: string }>;
       }) => {
-        const messages = ch.lastTrackedMessages
+        const messages = ch.unprocessedMessages
           .map(
             (m: { timestamp: number; text: string }) =>
               `  [${toIsraelTime(m.timestamp)}] ${m.text.slice(0, 200)}`,
           )
           .join("\n");
-        return `${ch.channel} (${ch.lastTrackedMessages.length} new):\n${messages}`;
+        return `${ch.channel} (${ch.unprocessedMessages.length} new):\n${messages}`;
       },
     )
     .join("\n\n");
@@ -268,7 +268,7 @@ export async function extractPosts(
   // ── Post-level dedup ───────────────────────────────
   const postHashMap = new Map<string, TrackedMessage>();
   for (const post of posts) {
-    const hash = textHash(post.channel + "|" + post.text.slice(0, 800));
+    const hash = textHash(post.channelId + "|" + post.text.slice(0, 800));
     postHashMap.set(hash, post);
   }
 
@@ -350,7 +350,7 @@ export async function extractPosts(
           {
             role: "user",
             content: `${contextHeader}Channel: ${
-              post.channel
+              post.channelId
             }\n\nMessage:\n${post.text.slice(0, 800)}`,
           },
         ]);
@@ -368,18 +368,18 @@ export async function extractPosts(
         ) as ExtractionResult;
         return {
           ...parsed,
-          channel: post.channel,
-          messageUrl: post.url,
+          channel: post.channelId,
+          messageUrl: post.sourceUrl,
           timeRelevance: parsed.timeRelevance ?? 0.5,
           valid: true,
         };
       } catch (err) {
         logger.warn("Agent: extraction failed", {
-          channel: post.channel,
+          channel: post.channelId,
           error: String(err),
         });
         return {
-          channel: post.channel,
+          channel: post.channelId,
           regionRelevance: 0,
           sourceTrust: 0,
           tone: "neutral" as const,
@@ -395,7 +395,7 @@ export async function extractPosts(
   // Cache new results
   const cacheEntries: Record<string, string> = {};
   newPosts.forEach((post, i) => {
-    const hash = textHash(post.channel + "|" + post.text.slice(0, 800));
+    const hash = textHash(post.channelId + "|" + post.text.slice(0, 800));
     cacheEntries[hash] = JSON.stringify(newResults[i]);
   });
   await saveCachedExtractions(cacheEntries);
