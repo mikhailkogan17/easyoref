@@ -6,6 +6,7 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json* ./
+RUN npm install --ignore-scripts --legacy-peer-deps
 COPY packages packages
 RUN npm install --workspaces --ignore-scripts --legacy-peer-deps
 RUN npm run build
@@ -14,6 +15,7 @@ RUN npm run build
 FROM node:22-alpine AS production
 WORKDIR /app
 COPY package.json package-lock.json* ./
+RUN npm install --omit=dev --ignore-scripts --legacy-peer-deps
 COPY packages packages
 RUN npm install --workspaces --omit=dev --ignore-scripts --legacy-peer-deps
 COPY --from=builder /app .
