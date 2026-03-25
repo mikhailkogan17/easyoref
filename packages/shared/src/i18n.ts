@@ -62,7 +62,7 @@ const ruPack: LanguagePack = {
   },
   labels: {
     area: "Район",
-    timeToImpact: "Подлётное время",
+    timeToImpact: "Подлёт",
     earlyEta: "~5–12 мин",
     sirenEta: "1.5 мин",
     monitoring:

@@ -157,6 +157,39 @@ export const InsightSchema = z.discriminatedUnion("kind", [
 export type Insight = z.infer<typeof InsightSchema>;
 
 // ─────────────────────────────────────────────────────────
+// Confidence Matrix — insight verification thresholds
+// ─────────────────────────────────────────────────────────
+
+export type ClarifyNeed = "needs_clarify" | "uncertain" | "verified";
+
+export interface InsightConfidenceThresholds {
+  needsClarify: number;
+  uncertain: number;
+  verified: number;
+}
+
+export const CONFIDENCE_MATRIX: Record<InsightKind, InsightConfidenceThresholds> = {
+  rocket_impact: { needsClarify: 0.4, uncertain: 0.5, verified: 0.6 },
+  rocket_interception: { needsClarify: 0.4, uncertain: 0.5, verified: 0.6 },
+  location: { needsClarify: 0.4, uncertain: 0.7, verified: 0.8 },
+  eta_minutes: { needsClarify: 0.4, uncertain: 0.5, verified: 0.55 },
+  cassette_munition: { needsClarify: 0.4, uncertain: 0.5, verified: 0.7 },
+  casualty: { needsClarify: 0.85, uncertain: 0.9, verified: 0.95 },
+  injury: { needsClarify: 0.85, uncertain: 0.9, verified: 0.95 },
+};
+
+export function getClarifyNeed(
+  insightKind: InsightKind,
+  confidence: number,
+): ClarifyNeed {
+  const thresholds = CONFIDENCE_MATRIX[insightKind];
+  if (!thresholds) return "uncertain";
+  if (confidence < thresholds.needsClarify) return "needs_clarify";
+  if (confidence < thresholds.uncertain) return "uncertain";
+  return "verified";
+}
+
+// ─────────────────────────────────────────────────────────
 // LLM extraction (single call per post)
 // ─────────────────────────────────────────────────────────
 
