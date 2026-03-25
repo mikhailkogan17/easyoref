@@ -1,6 +1,6 @@
 {
   "name": "@easyoref/agent",
-  "version": "1.21.16",
+  "version": "1.21.17",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,6 +13,7 @@
     "@langchain/core": "^1.1.31",
     "@langchain/langgraph": "^1.2.1",
     "@langchain/openai": "^1.2.12",
+    "@langchain/openrouter": "^0.1.0",
     "bullmq": "^5.0.0",
     "ioredis": "^5.3.0",
     "@easyoref/shared": "*",
