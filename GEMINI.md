@@ -168,8 +168,32 @@ Unicode superscript citations (¹²³), absolute ETA (~HH:MM¹), inline key:valu
 
 ## Release & Deploy Pipeline
 
-### Release Flow
+### 3 Release Flows
 
+#### Flow 1: Install (fresh system)
+```bash
+# On target system (RPi, server, etc.)
+npm install -g easyoref@latest
+easyoref init          # configure: bot_token, chat_ids, city_ids, etc.
+sudo HOME=$HOME easyoref install   # install systemd service
+systemctl status easyoref
+```
+
+#### Flow 2: Update (production RPi)
+```bash
+# From anywhere (triggers via npm script or SSH)
+ssh pi@raspberrypi.local "easyoref update"
+
+# Or locally (defined in package.json):
+npm run rpi
+```
+
+This does: 
+- `sudo npm install -g easyoref@latest`
+- `sudo systemctl restart easyoref`
+- Service auto-restarts with new code
+
+#### Flow 3: Release (local machine)
 ```bash
 # Patch release (1.21.0 → 1.21.1)
 npm run release
@@ -181,74 +205,96 @@ npm run release:minor
 npm run release:major
 ```
 
-This does: bump version → git push → npm publish (all packages)
+This does:
+1. Bump versions in all 6 packages (`scripts/bump.js`)
+2. Auto-commit: `chore: bump to easyoref@X.Y.Z, @easyoref/shared@X.Y.Z, ...`
+3. Create git tag: `vX.Y.Z`
+4. Push commits + tag to remote
+5. Build all packages: `npm run build`
+6. Publish all packages to npm: `npm publish --workspaces --no-provenance`
+7. Trigger RPi update: `npm run rpi` (runs `easyoref update` on RPi)
 
-### RPi Update
+### Development Workflow
 
+1. **Make changes** → commit to feature branch
+   ```bash
+   git checkout -b feature/my-feature
+   git add . && git commit -m "feat: description"
+   ```
+
+2. **Push & PR** → wait for CI:
+   ```bash
+   git push -u origin feature/my-feature
+   gh pr create --title "feat: description"
+   ```
+
+3. **Merge to main** — after CI passes:
+   ```bash
+   gh pr merge <number> --squash
+   ```
+
+4. **Release** — from main branch (automated):
+   ```bash
+   npm run release          # patch: 1.21.0 → 1.21.1
+   npm run release:minor    # minor: 1.21.0 → 1.22.0
+   npm run release:major    # major: 1.21.0 → 2.0.0
+   ```
+
+   This automatically:
+   - Bumps versions in all packages
+   - Commits version bump
+   - Tags commit as `vX.Y.Z`
+   - Pushes commits + tag
+   - Builds all packages
+   - Publishes to npm
+   - Triggers RPi update (if connected)
+
+### Git Tags & npm Versions
+
+Each release creates a git tag matching the npm version:
+- npm v1.22.0 → git tag `v1.22.0`
+- Push includes both commit and tag: `git push --tags`
+
+Tags are used for:
+- Release tracking: `git log --oneline v1.21.0..v1.22.0`
+- Docker image tagging: GitHub Actions builds `ghcr.io/mikhailkogan17/easyoref:v1.22.0`
+- Rollback reference: `git checkout v1.21.0`
+
+### RPi Deployment
+
+**Manual update:**
 ```bash
 ssh pi@raspberrypi.local
 easyoref update
 ```
 
-This does: npm update → npm install -g @easyoref/cli → docker compose down → docker compose up --build -d
-
-### Post-Implementation Checklist (MANDATORY)
-
-After every fix, feature, or refactor — **always** execute the full pipeline:
-
-1. **Version bump** — create changeset + apply it:
-   ```bash
-   npx changeset               # select patch / minor / major
-   npx changeset version       # bumps package.json + CHANGELOG.md
-   ```
-2. **Commit** — all changed files (code + version bump + CHANGELOG):
-   ```bash
-   git add -A && git commit -m "feat/fix: description"
-   ```
-3. **Push + PR** — push branch, create PR, wait for CI (`ci` status check):
-   ```bash
-   git push -u origin <branch>
-   gh pr create --title "..." --body "..."
-   ```
-4. **Merge** — squash merge after CI passes:
-   ```bash
-   gh pr merge <number> --squash --auto
-   ```
-5. **Trigger release** — manually run release.yml on main:
-   ```bash
-   gh workflow run release.yml --ref main
-   gh run list --workflow=release.yml -L1   # monitor
-   gh run view <run-id> --log               # check logs
-   ```
-6. **RPi update** — see detailed algorithm below
-
-### RPi Update
-
-**Host:** `raspberrypi.local` | **User:** `pi`
-
-```bash
-ssh pi@raspberrypi.local
-easyoref update
-```
+**Automatic** (happens after `npm run release`):
+- Script runs: `easyoref update` on RPi
+- Installs latest npm package
+- Restarts systemd service
+- New code live in ~30s
 
 **Troubleshooting:**
 
 | Symptom | Fix |
 |---|---|
-| Container not starting | `docker logs easyoref` |
-| Old version | `docker compose build --no-cache` |
+| Service fails to restart | `ssh pi@raspberrypi.local "journalctl -u easyoref -n 20"` |
+| Old version still running | `sudo systemctl restart easyoref` |
+| Port 3100 in use | `sudo pkill -9 node` then restart |
 
 ### General Troubleshooting
 
 | Problem | Cause | Fix |
 |---|---|---|
-| release.yml failed | Duplicate tag (manual `git tag` before CI) | Delete tag: `git push origin :refs/tags/vX.Y.Z`, re-run workflow |
-| npm 403 | OIDC token issue | Check trusted publisher on npmjs.com |
-| npm "already published" | CI already published on previous run | OK, skip |
-| Docker image not found | Release failed at Docker step | Re-run release workflow on GitHub |
+| `easyoref` command not found | NPM global not in PATH | `npm list -g easyoref`, then check `~/.npm-global/bin` is in `$PATH` |
+| npm "already published" | Version already on registry | Delete local tag, bump version, retry: `git tag -d vX.Y.Z && npm run release:patch` |
+| Service won't start | Missing dependencies | `sudo systemctl status easyoref` then `journalctl -u easyoref -n 50` |
+| Port 3100 already in use | Old process still running | `sudo pkill -9 node && sudo systemctl restart easyoref` |
 
 ### CRITICAL RULES
 
-- **NEVER** run `npm publish` locally — use `npm run release`
-- RPi deploy is ALWAYS via `easyoref update`, NEVER via manual docker commands
-- Docker compose builds locally on RPi (not from GHCR)
+- **NEVER** run `npm publish` locally — use `npm run release` (creates tag + publishes)
+- **NEVER** manually `git tag` — let `npm run release` handle it
+- RPi deploy is ALWAYS via `easyoref update` command, NEVER manual git clone
+- systemd service runs as root with `Environment=HOME=/home/pi` (config lookup)
+- No Docker on RPi production — only systemd service + redis container

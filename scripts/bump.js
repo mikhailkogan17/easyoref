@@ -41,4 +41,10 @@ for (const pkgName of packages) {
 const versions = Object.entries(newVersions).map(([k, v]) => `${k}@${v}`).join(", ");
 execSync(`git add packages/*/package.json && git commit -m "chore: bump to ${versions}"`, { stdio: "inherit" });
 
+// Get the version from easyoref (main package)
+const mainVersion = newVersions.easyoref;
+
+// Create git tag
+execSync(`git tag -a v${mainVersion} -m "Release v${mainVersion}"`, { stdio: "inherit" });
 console.log(`\n✅ Bumped ${packages.length} packages to ${bumpType}`);
+console.log(`✅ Created git tag: v${mainVersion}`);

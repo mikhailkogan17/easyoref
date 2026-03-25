@@ -147,6 +147,24 @@ Full reference: [`config.yaml.example`](config.yaml.example).
 
 ## Development
 
+### Installation & Updating
+
+**Install from scratch:**
+```bash
+npm install -g easyoref@latest
+easyoref init
+sudo HOME=$HOME easyoref install
+systemctl status easyoref
+```
+
+**Update (production):**
+```bash
+ssh pi@raspberrypi.local
+easyoref update
+```
+
+### Development Workflow
+
 ```bash
 # Test
 npm test              # Run all tests
@@ -155,20 +173,25 @@ npm run test:watch   # Watch mode
 # Build
 npm run build        # Build all packages
 
-# Version bump (auto-commits)
-npm run bump:patch   # 1.21.0 → 1.21.1
-npm run bump:minor   # 1.21.0 → 1.22.0
-npm run bump:major   # 1.21.0 → 2.0.0
+# Local development
+npm run dev          # Run bot locally (with hot reload)
 
-# Publish
-npm run publish      # Publish bot only
-npm run publish:all  # Publish all packages
-
-# Release flow (bump + push + publish)
-npm run release       # patch + push + publish
-npm run release:minor # minor + push + publish
-npm run release:major # major + push + publish
+# Release (all-in-one: bump + tag + push + publish + deploy)
+npm run release       # Patch: 1.21.0 → 1.21.1
+npm run release:minor # Minor: 1.21.0 → 1.22.0
+npm run release:major # Major: 1.21.0 → 2.0.0
 ```
+
+**What `npm run release` does:**
+1. Bumps all 6 package versions
+2. Creates git commit: `chore: bump to easyoref@X.Y.Z, ...`
+3. Creates git tag: `vX.Y.Z`
+4. Pushes commit + tag to remote
+5. Builds all packages
+6. Publishes to npm
+7. Triggers RPi update (if reachable)
+
+See [GEMINI.md](GEMINI.md) for full deployment architecture.
 
 ## License
 
