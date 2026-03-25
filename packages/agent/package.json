@@ -1,6 +1,6 @@
 {
   "name": "@easyoref/agent",
-  "version": "1.21.14",
+  "version": "1.21.16",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "langchain": "^1.2.0",
     "@langchain/core": "^1.1.31",
     "@langchain/langgraph": "^1.2.1",
     "@langchain/openai": "^1.2.12",
