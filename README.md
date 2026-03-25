@@ -4,7 +4,6 @@
 
 Israeli Home Front Command alerts — delivered to your loved ones' Telegram chat.
 
-[![CI](https://github.com/mikhailkogan17/EasyOref/actions/workflows/ci.yml/badge.svg)](https://github.com/mikhailkogan17/EasyOref/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![npm](https://img.shields.io/badge/npm-easyoref-CB3837?logo=npm)](https://www.npmjs.com/package/easyoref)
 [![LangGraph](https://img.shields.io/badge/LangGraph-agentic-blue?logo=langgraph)](https://langchain-ai.github.io/langgraphjs/)
@@ -37,9 +36,9 @@ Cell Broadcast alerts — for you in Israel.
 - **3 alert types** — early warning, red_alert, all-clear
 - **Custom messages** — your own text and media per alert type
 
-## Install
+## Quick Start
 
-### Quick Start (Recommended)
+### Install
 
 #### 1. Install Node.js
 
@@ -101,14 +100,14 @@ systemctl status easyoref
 
 **Done!** Bot runs 24/7 via systemd. Logs: `easyoref logs`
 
-### Or Run Once (Testing Only)
+> Guides: [RPi](docs/rpi.md) · [Local](docs/local.md)
+
+### Update
+To update the deployed instance, run:
 
 ```bash
-easyoref
+easyoref update
 ```
-
-> For persistent deployment, use systemd service (Step 5 above).
-> Guides: [RPi Production](docs/rpi.md) · [Local Development](docs/local.md)
 
 ## How it works
 
@@ -150,30 +149,14 @@ Full reference: [`config.yaml.example`](config.yaml.example).
 | `telegram.bot_token`     | —       | **required.** Token from @BotFather                                                                 |
 | `telegram.chat_id`       | —       | **required.** Chat ID (negative number)                                                             |
 | `language`               | `ru`    | `ru` `en` `he` `ar`                                                                                 |
-| `alert_types`            | all     | `early` `red_alert` `resolved`                                                                          |
+| `alert_types`            | all     | `early` `red_alert` `resolved`                                                                      |
 | `gif_mode`               | `none`  | `funny_cats` `none`                                                                                 |
 | `title_override.*`       | —       | Custom title per alert type                                                                         |
 | `description_override.*` | —       | Custom description per alert type                                                                   |
 
 ## Development
 
-### Installation & Updating
-
-**Install from scratch:**
-```bash
-npm install -g easyoref@latest
-easyoref init
-sudo HOME=$HOME easyoref install
-systemctl status easyoref
-```
-
-**Update (production):**
-```bash
-ssh pi@raspberrypi.local
-easyoref update
-```
-
-### Development Workflow
+### Workflow
 
 ```bash
 # Test
