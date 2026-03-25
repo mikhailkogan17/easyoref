@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, cpSync, rmSync } from "node:fs";
+import { execSync } from "node:child_process";
 
 const args = process.argv.slice(2);
 const bumpType = args.find(a => a.startsWith("--bump-type="))?.split("=")[1] || "patch";
@@ -10,19 +11,34 @@ if (!valid.includes(bumpType)) {
   process.exit(1);
 }
 
-const pkg = JSON.parse(readFileSync("packages/bot/package.json", "utf-8"));
-const [major, minor, patch] = pkg.version.split(".").map(Number);
+const packages = ["bot", "shared", "agent", "monitoring", "gramjs", "cli"];
+const newVersions = {};
 
-let newVersion;
-if (bumpType === "major") {
-  newVersion = `${major + 1}.0.0`;
-} else if (bumpType === "minor") {
-  newVersion = `${major}.${minor + 1}.0`;
-} else {
-  newVersion = `${major}.${minor}.${patch + 1}`;
+for (const pkgName of packages) {
+  const path = `packages/${pkgName}/package.json`;
+  const pkg = JSON.parse(readFileSync(path, "utf-8"));
+  
+  if (pkg.private) continue;
+  
+  const [major, minor, patch] = pkg.version.split(".").map(Number);
+  let newVersion;
+  
+  if (bumpType === "major") {
+    newVersion = `${major + 1}.0.0`;
+  } else if (bumpType === "minor") {
+    newVersion = `${major}.${minor + 1}.0`;
+  } else {
+    newVersion = `${major}.${minor}.${patch + 1}`;
+  }
+  
+  pkg.version = newVersion;
+  writeFileSync(path, JSON.stringify(pkg, null, 2) + "\n");
+  newVersions[pkg.name || pkgName] = newVersion;
+  console.log(`${pkg.name} → ${newVersion}`);
 }
 
-pkg.version = newVersion;
-writeFileSync("packages/bot/package.json", JSON.stringify(pkg, null, 2) + "\n");
+// Auto commit
+const versions = Object.entries(newVersions).map(([k, v]) => `${k}@${v}`).join(", ");
+execSync(`git add packages/*/package.json && git commit -m "chore: bump to ${versions}"`, { stdio: "inherit" });
 
-console.log(`Bumped version: ${pkg.version} → ${newVersion}`);
+console.log(`\n✅ Bumped ${packages.length} packages to ${bumpType}`);

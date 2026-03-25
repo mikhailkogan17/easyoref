@@ -145,6 +145,31 @@ Full reference: [`config.yaml.example`](config.yaml.example).
 | `title_override.*`       | —       | Custom title per alert type                                                                         |
 | `description_override.*` | —       | Custom description per alert type                                                                   |
 
+## Development
+
+```bash
+# Test
+npm test              # Run all tests
+npm run test:watch   # Watch mode
+
+# Build
+npm run build        # Build all packages
+
+# Version bump (auto-commits)
+npm run bump:patch   # 1.21.0 → 1.21.1
+npm run bump:minor   # 1.21.0 → 1.22.0
+npm run bump:major   # 1.21.0 → 2.0.0
+
+# Publish
+npm run publish      # Publish bot only
+npm run publish:all  # Publish all packages
+
+# Release flow (bump + push + publish)
+npm run release       # patch + push + publish
+npm run release:minor # minor + push + publish
+npm run release:major # major + push + publish
+```
+
 ## License
 
 [MIT](LICENSE) — Mikhail Kogan, 2026
