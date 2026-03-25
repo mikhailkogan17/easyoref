@@ -18,7 +18,7 @@ import { type AlertTypeConfig, type GifMode } from "./schemas.js";
 
 const VALID_GIF_MODES: GifMode[] = ["funny_cats", "none"];
 
-const ALL_ALERT_TYPES: AlertTypeConfig[] = ["early", "siren", "resolved"];
+const ALL_ALERT_TYPES: AlertTypeConfig[] = ["early", "red_alert", "resolved"];
 
 /** Raw YAML schema */
 interface ConfigYaml {

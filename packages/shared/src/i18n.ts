@@ -17,7 +17,7 @@ export type Language = "ru" | "en" | "he" | "ar";
 
 // ── Alert metadata types ─────────────────────────────────
 
-export type AlertKind = "early" | "siren" | "resolved";
+export type AlertKind = "early" | "red_alert" | "resolved";
 
 export interface AlertLocales {
   emoji: string;
@@ -49,7 +49,7 @@ const ruPack: LanguagePack = {
       title: "Раннее предупреждение",
       description: "Обнаружены запуски ракет по Израилю.",
     },
-    siren: {
+    red_alert: {
       emoji: "🚨",
       title: "Цева Адом",
       description: "",
@@ -77,7 +77,7 @@ const enPack: LanguagePack = {
       title: "Early Warning",
       description: "Rocket launches detected. Stay near a protected space.",
     },
-    siren: {
+    red_alert: {
       emoji: "🚨",
       title: "Siren Alert",
       description: "Enter a protected space immediately.",
@@ -105,7 +105,7 @@ const hePack: LanguagePack = {
       title: "התרעה מוקדמת",
       description: "זוהו שיגורים. הישארו בקרבת מרחב מוגן.",
     },
-    siren: {
+    red_alert: {
       emoji: "🚨",
       title: "צבע אדום",
       description: "היכנסו למרחב מוגן.",
@@ -133,7 +133,7 @@ const arPack: LanguagePack = {
       title: "إنذار مبكر",
       description: "تم رصد إطلاق صواريخ. ابقوا بالقرب من الملجأ.",
     },
-    siren: {
+    red_alert: {
       emoji: "🚨",
       title: "صفارة إنذار",
       description: "ادخلوا إلى الملجأ فوراً.",

@@ -469,7 +469,7 @@ describe("buildEnrichmentFromVote", () => {
     const result = buildEnrichmentFromVote(
       sirenVote,
       earlyEnrichment,
-      "siren",
+      "red_alert",
       ALERT_TS,
     );
 
@@ -555,7 +555,7 @@ describe("buildEnrichedMessage", () => {
 
     const result = buildEnrichedMessage(
       sirenMessage,
-      "siren",
+      "red_alert",
       ALERT_TS,
       enrichment,
     );
@@ -613,7 +613,7 @@ describe("buildEnrichedMessage", () => {
 
     const result = buildEnrichedMessage(
       sirenMessage,
-      "siren",
+      "red_alert",
       ALERT_TS,
       enrichment,
     );

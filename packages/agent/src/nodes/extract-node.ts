@@ -53,8 +53,8 @@ const getPhaseInstructions = (alertType: AlertType): string => {
   switch (alertType) {
     case "early_warning":
       return `PHASE: EARLY WARNING. Focus on country_origin, eta_refined_minutes, rocket_count, is_cassette.`;
-    case "siren":
-      return `PHASE: SIREN. Focus on country_origin, rocket_count, intercepted, sea_impact, open_area_impact.`;
+    case "red_alert":
+      return `PHASE: RED ALERT. Focus on country_origin, rocket_count, intercepted, sea_impact, open_area_impact.`;
     case "resolved":
       return `PHASE: RESOLVED. All fields valid. Prioritize confirmed official reports.`;
   }

@@ -164,8 +164,8 @@ Focus on: countryOrigin (WHERE were rockets launched from?), eta_refined_minutes
 Do NOT extract: intercepted, seaImpact, open_area_impact, hitsConfirmed, casualties, injuries — these are IMPOSSIBLE at this stage.
 If a message discusses interception results, it is about a PREVIOUS attack — set timeRelevance=0.`;
 
-    case "siren":
-      return `PHASE: SIREN (rockets incoming, impact imminent).
+    case "red_alert":
+      return `PHASE: RED ALERT (rockets incoming, impact imminent).
 Focus on: countryOrigin (if not known yet), rocketCount, intercepted, seaImpact, open_area_impact, isCassette.
 Do NOT extract: hitsConfirmed, casualties, injuries — too early for confirmed damage reports.
 If a message discusses casualties or confirmed hits, verify the timing carefully - it may be about a previous attack.`;

@@ -36,21 +36,21 @@ const SESSION_TTL_S = 45 * 60; // 45 min worst case
 /** Max duration (ms) for each phase before auto-expire */
 export const PHASE_TIMEOUT_MS: Record<AlertType, number> = {
   early_warning: 30 * 60 * 1000, // 30 min
-  siren: 15 * 60 * 1000, // 15 min
+  red_alert: 15 * 60 * 1000, // 15 min
   resolved: 10 * 60 * 1000, // 10 min tail
 };
 
 /** Enrichment interval (ms) per phase */
 export const PHASE_ENRICH_DELAY_MS: Record<AlertType, number> = {
   early_warning: 60_000, // 60s — channels need time to post; saves tokens
-  siren: 45_000, // 45s
+  red_alert: 45_000, // 45s
   resolved: 150_000, // 150s (2.5 min) — per user requirement: 10 min window, update every 2.5 min
 };
 
 /** Initial enrichment delay — first job after alert (channels need time to post) */
 export const PHASE_INITIAL_DELAY_MS: Record<AlertType, number> = {
   early_warning: 120_000, // 2 min — wait for launch reports
-  siren: 15_000, // 15s
+  red_alert: 15_000, // 15s
   resolved: 90_000, // 90s — wait for first wave of post-incident reports
 };
 

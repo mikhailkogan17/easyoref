@@ -11,7 +11,7 @@ import type {
   CitedSource,
   EnrichmentData,
   InlineCite,
-  QualCount,
+  QualitativeCount,
   VotedResult,
 } from "@easyoref/shared";
 import {
@@ -147,7 +147,7 @@ export function appendMonitoring(text: string, label: string): string {
 // ── Display helpers ────────────────────────────────────
 
 function qualDisplay(
-  qual: QualCount | undefined,
+  qual: QualitativeCount | undefined,
   conf: number,
 ): string | undefined {
   if (qual === undefined) return undefined;
@@ -184,15 +184,16 @@ export function buildEnrichmentFromVote(
     data.origin = result.countryOrigins
       .map((c: { name: string }) => COUNTRY_RU[c.name] ?? c.name)
       .join(" + ");
-    data.originCites = result.countryOrigins.flatMap((c: { citations: number[] }) =>
-      extractCites(c.citations, result.citedSources),
+    data.originCites = result.countryOrigins.flatMap(
+      (c: { citations: number[] }) =>
+        extractCites(c.citations, result.citedSources),
     );
   }
 
-  // ETA — only for early_warning/siren
+  // ETA — only for early_warning/red_alert
   if (
     result.etaRefinedMinutes &&
-    (alertType === "early_warning" || alertType === "siren")
+    (alertType === "early_warning" || alertType === "red_alert")
   ) {
     const absTime = new Date(
       alertTs + result.etaRefinedMinutes * 60_000,
@@ -217,7 +218,10 @@ export function buildEnrichmentFromVote(
       result.rocketCountMin === result.rocketCountMax
         ? `${result.rocketCountMin}${u}`
         : `~${result.rocketCountMin}–${result.rocketCountMax}${u}`;
-    data.rocketCites = extractCites(result.rocketCitations, result.citedSources);
+    data.rocketCites = extractCites(
+      result.rocketCitations,
+      result.citedSources,
+    );
   }
 
   // Cassette
@@ -226,7 +230,10 @@ export function buildEnrichmentFromVote(
   }
 
   // Intercepted
-  if (result.intercepted !== undefined && result.interceptedConfidence >= SKIP) {
+  if (
+    result.intercepted !== undefined &&
+    result.interceptedConfidence >= SKIP
+  ) {
     const u = result.interceptedConfidence < UNCERTAIN ? " (?)" : "";
     data.intercepted = `${result.intercepted}${u}`;
     data.interceptedCites = extractCites(
@@ -234,12 +241,19 @@ export function buildEnrichmentFromVote(
       result.citedSources,
     );
   } else if (result.interceptedQual && result.interceptedConfidence >= SKIP) {
-    const qs = qualDisplay(result.interceptedQual, result.interceptedConfidence);
+    const qs = qualDisplay(
+      result.interceptedQual,
+      result.interceptedConfidence,
+    );
     if (qs) data.intercepted = qs;
   }
 
   // Hits
-  if (result.hitsConfirmed && result.hitsConfirmed > 0 && result.hitsConfidence >= SKIP) {
+  if (
+    result.hitsConfirmed &&
+    result.hitsConfirmed > 0 &&
+    result.hitsConfidence >= SKIP
+  ) {
     const u = result.hitsConfidence < UNCERTAIN ? " (?)" : "";
     data.hitsConfirmed = `${result.hitsConfirmed}${u}`;
     data.hitsCites = extractCites(result.hitsCitations, result.citedSources);
@@ -248,7 +262,10 @@ export function buildEnrichmentFromVote(
   // No impacts: sources explicitly confirm zero hits
   if (result.noImpacts && result.hitsConfidence >= SKIP) {
     data.noImpacts = true;
-    data.noImpactsCites = extractCites(result.noImpactsCitations, result.citedSources);
+    data.noImpactsCites = extractCites(
+      result.noImpactsCitations,
+      result.citedSources,
+    );
   }
 
   // Rocket detail (per-region breakdown)
@@ -276,12 +293,19 @@ export function buildEnrichmentFromVote(
   ) {
     // No uncertainty marker for deaths — either confirmed or not shown
     data.casualties = `${result.casualties}`;
-    data.casualtiesCites = extractCites(result.casualtiesCitations, result.citedSources);
+    data.casualtiesCites = extractCites(
+      result.casualtiesCitations,
+      result.citedSources,
+    );
   }
 
   // Injuries — show only if confidence >= UNCERTAIN (not SKIP)
   // Retractions: if new vote has injuries=0 and confidence >= UNCERTAIN, clear previous data
-  if (result.injuries && result.injuries > 0 && result.injuriesConfidence >= UNCERTAIN) {
+  if (
+    result.injuries &&
+    result.injuries > 0 &&
+    result.injuriesConfidence >= UNCERTAIN
+  ) {
     const u = result.injuriesConfidence < CERTAIN ? " (?)" : "";
     const causeSuffix =
       result.injuriesCause === "rushing_to_shelter"
@@ -291,7 +315,10 @@ export function buildEnrichmentFromVote(
         : "";
     data.injuries = `${result.injuries}${u}${causeSuffix}`;
     data.injuriesCause = result.injuriesCause;
-    data.injuriesCites = extractCites(result.injuriesCitations, result.citedSources);
+    data.injuriesCites = extractCites(
+      result.injuriesCitations,
+      result.citedSources,
+    );
   } else if (
     result.injuries &&
     result.injuries === 0 &&
@@ -334,7 +361,7 @@ export function buildEnrichedMessage(
   // ── Refine ETA in-place ──
   if (
     enrichment.etaAbsolute &&
-    (alertType === "early_warning" || alertType === "siren")
+    (alertType === "early_warning" || alertType === "red_alert")
   ) {
     const etaCiteStr = renderCitesGlobal(enrichment.etaCites, citeMap);
     const refined = `${enrichment.etaAbsolute}${etaCiteStr}`;

@@ -81,7 +81,7 @@ function matchedAreaLabel(alertAreas: string[]): string {
 /** Map internal AlertType → YAML config key */
 const ALERT_TYPE_TO_CONFIG: Record<AlertType, AlertTypeConfig> = {
   early_warning: "early",
-  siren: "siren",
+  red_alert: "red_alert",
   resolved: "resolved",
 };
 
@@ -89,7 +89,7 @@ function classifyAlertType(title: string): AlertType {
   if (title.includes("האירוע הסתיים")) return "resolved";
   if (title.includes("בדקות הקרובות") || title.includes("צפויות להתקבל"))
     return "early_warning";
-  return "siren";
+  return "red_alert";
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -103,7 +103,7 @@ const COOLDOWN_RESOLVED_MS = 5 * 60 * 1000; // 5 min
 
 const lastSent: Record<AlertType, number> = {
   early_warning: 0,
-  siren: 0,
+  red_alert: 0,
   resolved: 0,
 };
 
@@ -114,8 +114,7 @@ function shouldSend(type: AlertType): boolean {
       return elapsed >= COOLDOWN_EARLY_MS;
     case "resolved":
       return elapsed >= COOLDOWN_RESOLVED_MS;
-    case "siren": {
-      // If early warning was already sent this cycle → longer cooldown (user already informed)
+    case "red_alert": {
       const sirenCd =
         lastSent.early_warning > 0
           ? COOLDOWN_SIREN_AFTER_EARLY_MS
@@ -131,10 +130,10 @@ function markSent(type: AlertType): void {
   // After resolved → reset ALL others (new attack cycle)
   if (type === "resolved") {
     lastSent.early_warning = 0;
-    lastSent.siren = 0;
+    lastSent.red_alert = 0;
   }
-  // After siren → allow new early_warning (next wave) and resolved
-  if (type === "siren") {
+  // After red_alert → allow new early_warning (next wave) and resolved
+  if (type === "red_alert") {
     lastSent.early_warning = 0;
     lastSent.resolved = 0;
   }
@@ -309,7 +308,7 @@ function getGifUrl(alertType: AlertType): string | null {
         isNightInIsrael() ? `${mode}_early_night` : `${mode}_early`,
       );
     }
-    case "siren":
+    case "red_alert":
       return pickGif(pools.siren, `${mode}_siren`);
     case "resolved":
       return pickGif(pools.resolved, `${mode}_resolved`);
@@ -368,7 +367,7 @@ function formatMessage(alertType: AlertType, areas: string): string {
 
   if (alertType === "early_warning") {
     lines.push(`<b>${labels.timeToImpact}:</b> ${labels.earlyEta}`);
-  } else if (alertType === "siren") {
+  } else if (alertType === "red_alert") {
     lines.push(`<b>${labels.timeToImpact}:</b> ${labels.sirenEta}`);
   }
   lines.push("</blockquote>");

@@ -9,10 +9,10 @@ import { z } from "zod";
 // Alert & Phase types
 // ─────────────────────────────────────────────────────────
 
-export const AlertTypeSchema = z.enum(["early_warning", "siren", "resolved"]);
+export const AlertTypeSchema = z.enum(["early_warning", "red_alert", "resolved"]);
 export type AlertType = z.infer<typeof AlertTypeSchema>;
 
-export const QualCountSchema = z.discriminatedUnion("type", [
+export const QualitativeCountSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("all") }),
   z.object({ type: z.literal("most") }),
   z.object({ type: z.literal("many") }),
@@ -22,7 +22,7 @@ export const QualCountSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("more_than"), value: z.number() }),
   z.object({ type: z.literal("less_than"), value: z.number() }),
 ]);
-export type QualCount = z.infer<typeof QualCountSchema>;
+export type QualitativeCount = z.infer<typeof QualitativeCountSchema>;
 
 // ─────────────────────────────────────────────────────────
 // Channel tracking (pre-graph structure)
@@ -110,7 +110,7 @@ export const ExtractionResultSchema = z.object({
     .min(0)
     .optional()
     .describe("Rocket breakdown: intercepted by Iron Dome"),
-  interceptedQual: QualCountSchema.optional().describe(
+  interceptedQual: QualitativeCountSchema.optional().describe(
     "Qualitative descriptor when no exact number is stated (undefined if exact number given)",
   ),
   seaImpact: z
@@ -119,14 +119,14 @@ export const ExtractionResultSchema = z.object({
     .min(0)
     .optional()
     .describe("Rocket breakdown: fell in sea/empty area"),
-  seaImpactQual: QualCountSchema.optional(),
+  seaImpactQual: QualitativeCountSchema.optional(),
   openAreaImpact: z
     .number()
     .int()
     .min(0)
     .optional()
     .describe("Rocket breakdown: hit open/populated ground"),
-  openAreaImpactQual: QualCountSchema.optional(),
+  openAreaImpactQual: QualitativeCountSchema.optional(),
   hitsConfirmed: z.number().int().min(0).optional(),
   hitLocation: z
     .string()
@@ -267,7 +267,7 @@ export const VotedResultSchema = z.object({
     .describe(
       "Rocket breakdown (median values; undefined if no sources reported)",
     ),
-  interceptedQual: QualCountSchema.optional(),
+  interceptedQual: QualitativeCountSchema.optional(),
   interceptedConfidence: z
     .number()
     .min(0)
@@ -275,10 +275,10 @@ export const VotedResultSchema = z.object({
     .default(0)
     .describe("Avg weighted confidence of sources reporting intercepted count"),
   seaImpact: z.number().int().min(0).optional(),
-  seaImpactQual: QualCountSchema.optional(),
+  seaImpactQual: QualitativeCountSchema.optional(),
   seaConfidence: z.number().min(0).max(1).default(0),
   openAreaImpact: z.number().int().min(0).optional(),
-  openAreaImpactQual: QualCountSchema.optional(),
+  openAreaImpactQual: QualitativeCountSchema.optional(),
   openAreaConfidence: z.number().min(0).max(1).default(0),
 
   hitsConfirmed: z.number().int().min(0).optional(),
@@ -509,29 +509,6 @@ export const ClarifyOutputSchema = z.object({
 export type ClarifyOutput = z.infer<typeof ClarifyOutputSchema>;
 
 // ─────────────────────────────────────────────────────────
-// Graph state (LangGraph AgentState)
-// ─────────────────────────────────────────────────────────
-
-export const AgentStateSchema = z.object({
-  alertId: z.string().min(1),
-  alertTs: z.number().int().min(0),
-  alertType: AlertTypeSchema,
-  alertAreas: z.array(z.string().min(1)),
-  chatId: z.string().min(1),
-  messageId: z.number().int().min(1),
-  isCaption: z.boolean(),
-  currentText: z.string().min(1),
-  tracking: ChannelTrackingSchema.optional(),
-  extractions: z.array(ValidatedExtractionSchema).default([]),
-  votedResult: VotedResultSchema.optional(),
-  clarifyAttempted: z.boolean().default(false),
-  previousEnrichment: EnrichmentDataSchema.optional(),
-  monitoringLabel: z.string().optional(),
-  telegramMessages: z.array(TelegramMessageSchema).default([]),
-});
-export type AgentState = z.infer<typeof AgentStateSchema>;
-
-// ─────────────────────────────────────────────────────────
 // Graph & enrichment input
 // ─────────────────────────────────────────────────────────
 
@@ -553,7 +530,7 @@ export type RunEnrichmentInput = z.infer<typeof RunEnrichmentInputSchema>;
 // Config types
 // ─────────────────────────────────────────────────────────
 
-export const AlertTypeConfigSchema = z.enum(["early", "siren", "resolved"]);
+export const AlertTypeConfigSchema = z.enum(["early", "red_alert", "resolved"]);
 export type AlertTypeConfig = z.infer<typeof AlertTypeConfigSchema>;
 
 export const GifModeSchema = z.enum(["funny_cats", "none"]);
