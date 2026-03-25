@@ -1,6 +1,6 @@
 {
   "name": "@easyoref/cli",
-  "version": "1.21.7",
+  "version": "1.21.8",
   "description": "Interactive setup wizard for EasyOref",
   "type": "module",
   "bin": {
@@ -34,6 +34,6 @@
     "typescript": "^5.7.0"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=20"
   }
 }
