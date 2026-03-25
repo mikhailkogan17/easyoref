@@ -114,11 +114,11 @@ function shouldSend(type: AlertType): boolean {
     case "resolved":
       return elapsed >= COOLDOWN_RESOLVED_MS;
     case "red_alert": {
-      const sirenCd =
+      const cd =
         lastSent.early_warning > 0
           ? COOLDOWN_RED_ALERT_AFTER_EARLY_MS
           : COOLDOWN_RED_ALERT_MS;
-      return elapsed >= sirenCd;
+      return elapsed >= cd;
     }
   }
 }
@@ -367,7 +367,7 @@ function formatMessage(alertType: AlertType, areas: string): string {
   if (alertType === "early_warning") {
     lines.push(`<b>${labels.timeToImpact}:</b> ${labels.earlyEta}`);
   } else if (alertType === "red_alert") {
-    lines.push(`<b>${labels.timeToImpact}:</b> ${labels.sirenEta}`);
+    lines.push(`<b>${labels.timeToImpact}:</b> ${labels.redAlertEta}`);
   }
   lines.push("</blockquote>");
 

@@ -29,7 +29,7 @@ export interface I18nLabels {
   area: string;
   timeToImpact: string;
   earlyEta: string;
-  sirenEta: string;
+  redAlertEta: string;
   monitoring: string;
 }
 
@@ -64,7 +64,7 @@ const ruPack: LanguagePack = {
     area: "Район",
     timeToImpact: "Подлёт",
     earlyEta: "~5–12 мин",
-    sirenEta: "1.5 мин",
+    redAlertEta: "1.5 мин",
     monitoring:
       '<tg-emoji emoji-id="5258052328455424397">⏳</tg-emoji> Сообщение обновляется...',
   },
@@ -92,7 +92,7 @@ const enPack: LanguagePack = {
     area: "Area",
     timeToImpact: "Time to impact",
     earlyEta: "~5–12 min",
-    sirenEta: "1.5 min",
+    redAlertEta: "1.5 min",
     monitoring:
       '<tg-emoji emoji-id="5258052328455424397">⏳</tg-emoji> Message updating...',
   },
@@ -120,7 +120,7 @@ const hePack: LanguagePack = {
     area: "אזור",
     timeToImpact: "זמן מעוף",
     earlyEta: "~5–12 דקות",
-    sirenEta: "1.5 דקות",
+    redAlertEta: "1.5 דקות",
     monitoring:
       '<tg-emoji emoji-id="5258052328455424397">⏳</tg-emoji> ההודעה מתעדכנת...',
   },
@@ -148,7 +148,7 @@ const arPack: LanguagePack = {
     area: "المنطقة",
     timeToImpact: "وقت الوصول",
     earlyEta: "~5–12 دقيقة",
-    sirenEta: "1.5 دقيقة",
+    redAlertEta: "1.5 دقيقة",
     monitoring:
       '<tg-emoji emoji-id="5258052328455424397">⏳</tg-emoji> الرسالة قيد التحديث...',
   },

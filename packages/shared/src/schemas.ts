@@ -168,7 +168,10 @@ export interface InsightConfidenceThresholds {
   verified: number;
 }
 
-export const CONFIDENCE_MATRIX: Record<InsightKind, InsightConfidenceThresholds> = {
+export const CONFIDENCE_MATRIX: Record<
+  InsightKind,
+  InsightConfidenceThresholds
+> = {
   rocket_impact: { needsClarify: 0.4, uncertain: 0.5, verified: 0.6 },
   rocket_interception: { needsClarify: 0.4, uncertain: 0.5, verified: 0.6 },
   location: { needsClarify: 0.4, uncertain: 0.7, verified: 0.8 },
@@ -481,7 +484,7 @@ export const EnrichmentDataSchema = z.object({
   origin: z
     .string()
     .optional()
-    .describe("Origin country (from early_warning or siren)"),
+    .describe("Origin country (from early_warning or red_alert)"),
   originCites: z.array(InlineCiteSchema).default([]),
   etaAbsolute: z
     .string()
