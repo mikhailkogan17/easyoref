@@ -22,7 +22,7 @@ export interface EnrichJobData {
 /** Scoped queue name — unique per instance */
 export function enrichQueueName(): string {
   return config.redisPrefix
-    ? `${config.redisPrefix}:enrich-alert`
+    ? `${config.redisPrefix}__enrich-alert`
     : "enrich-alert";
 }
 
