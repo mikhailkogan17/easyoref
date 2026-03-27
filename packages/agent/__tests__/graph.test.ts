@@ -94,7 +94,7 @@ function makeInsight(
     regionRelevance: 0.9,
     confidence: 0.8,
     source: makeSource(),
-    timeStamp: new Date(),
+    timeStamp: new Date().toISOString(),
     isValid: true,
     sourceTrust: 0.8,
     ...overrides,
@@ -343,11 +343,11 @@ describe("describeContradictions", () => {
     const insights: ValidatedInsightType[] = [
       makeInsight({
         kind: "country_origins",
-        value: new Set(["Iran"]),
+        value: ["Iran"],
       }),
       makeInsight({
         kind: "country_origins",
-        value: new Set(["Yemen"]),
+        value: ["Yemen"],
       }),
     ];
     const result = describeContradictions(insights);
@@ -492,7 +492,7 @@ describe("voteNode", () => {
 
   it("carries forward previousInsights into consensus", async () => {
     const prev = {
-      kind: { kind: "country_origins" as const, value: new Set(["Iran"]) },
+      kind: { kind: "country_origins" as const, value: ["Iran"] },
       sources: [makeSource("@prev")],
       confidence: 0.85,
       sourceTrust: 0.9,

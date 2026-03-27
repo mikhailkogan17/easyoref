@@ -232,7 +232,7 @@ export const Insight = z.object({
     .describe("How relevant this insight to alert region"),
   confidence: z.number().min(0).max(1).describe("Extraction confidence"),
   source: BaseSourceMessage,
-  timeStamp: z.date(),
+  timeStamp: z.string().describe("ISO 8601 timestamp"),
   extractionReason: z.string().optional(),
 });
 export type InsightType = z.infer<typeof Insight>;

@@ -104,7 +104,7 @@ export async function voteNode(
         regionRelevance: vi.regionRelevance,
         confidence: vi.confidence,
         sourceTrust: vi.sourceTrust,
-        timeStamp: new Date(src.timestamp),
+        timeStamp: new Date(src.timestamp).toISOString(),
         isValid: true,
         extractionReason: "carry-forward from previous phase",
         insightLocation: vi.insightLocation,

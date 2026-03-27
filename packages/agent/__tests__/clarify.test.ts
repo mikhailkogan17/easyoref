@@ -246,7 +246,7 @@ describe("contradiction detection", () => {
       timeRelevance: 1,
       regionRelevance: 1,
       confidence,
-      timeStamp: new Date(),
+      timeStamp: new Date().toISOString(),
       isValid: true,
     };
   }
