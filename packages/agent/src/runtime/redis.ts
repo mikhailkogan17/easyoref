@@ -15,6 +15,7 @@ export function getRedis(): IORedis {
       lazyConnect: false,
       maxRetriesPerRequest: 3,
       enableReadyCheck: true,
+      keyPrefix: config.redisPrefix ? `${config.redisPrefix}:` : undefined,
     });
 
     _redis.on("error", (err: Error) => {

@@ -23,7 +23,7 @@ export function describeContradictions(insights: ValidatedInsightType[]): string
     const countries = new Set<string>();
     for (const i of countryInsights) {
       if (i.kind.kind === "country_origins") {
-        (i.kind.value as Set<string>).forEach((c) => countries.add(c));
+        (i.kind.value as string[]).forEach((c) => countries.add(c));
       }
     }
     if (countries.size > 1) {

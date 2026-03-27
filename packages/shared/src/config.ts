@@ -44,6 +44,13 @@ interface ConfigYaml {
   data_dir?: string;
   oref_api_url?: string;
   oref_history_url?: string;
+  /**
+   * Redis key namespace prefix for multi-instance deployments.
+   * All Redis keys (store + BullMQ queue) are scoped to this prefix.
+   * Example: "ru" → keys like "ru:session:active", queue "ru:enrich-alert"
+   * Defaults to "" (no prefix — backward-compatible single-instance behaviour).
+   */
+  redis_prefix?: string;
   ai?: ConfigYamlAi;
 }
 
@@ -177,6 +184,14 @@ export const config = {
     const raw = (yml.language ?? process.env.LANGUAGE ?? "ru").toLowerCase();
     return isValidLanguage(raw) ? raw : "ru";
   })(),
+
+  /**
+   * Redis key namespace prefix for multi-instance deployments.
+   * Applied as ioredis `keyPrefix` on all connections (store + agent).
+   * BullMQ queue name is also scoped: `{redisPrefix}:enrich-alert` (or plain when empty).
+   * Env var: REDIS_PREFIX
+   */
+  redisPrefix: yml.redis_prefix ?? process.env.REDIS_PREFIX ?? "",
 
   /** Emoji overrides per alert type */
   emojiOverride: yml.emoji_override ?? {},

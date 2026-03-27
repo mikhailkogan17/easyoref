@@ -5,19 +5,20 @@
  *   easyoref              — run the bot (foreground)
  *   easyoref run          — same as above
  *   easyoref init         — interactive setup wizard
- *   easyoref update       — update to latest version
- *   easyoref install      — create systemd service + start
- *   easyoref uninstall    — remove systemd service
- *   easyoref start        — start service
- *   easyoref stop         — stop service
- *   easyoref restart      — restart service
- *   easyoref status       — show service status
- *   easyoref logs         — follow service logs
+ *   easyoref update       — update to latest version & restart all services
+ *   easyoref install      — install systemd service(s) for all configs in ~/.easyoref/
+ *   easyoref uninstall [name] — remove service(s)
+ *   easyoref start    [name] — start service(s)
+ *   easyoref stop     [name] — stop service(s)
+ *   easyoref restart  [name] — restart service(s)
+ *   easyoref status   [name] — show service status
+ *   easyoref logs     [name] — follow service logs
  */
 
 import { execSync } from "node:child_process";
 
 const command = process.argv[2];
+const arg = process.argv[3]; // optional instance name for service commands
 
 switch (command) {
   case "init": {
@@ -34,20 +35,25 @@ switch (command) {
 
       // Ensure redis is running
       try {
-        execSync("docker inspect easyoref-redis --format '{{.State.Running}}' 2>/dev/null | grep -q true", { stdio: "pipe" });
+        execSync(
+          "docker inspect easyoref-redis --format '{{.State.Running}}' 2>/dev/null | grep -q true",
+          { stdio: "pipe" },
+        );
         console.log("\n  → redis already running");
       } catch {
         console.log("\n  → docker run redis");
         execSync(
           "docker run -d --name easyoref-redis --restart unless-stopped " +
-          "-v easyoref-redis:/data " +
-          "redis:7-alpine redis-server --appendonly yes --maxmemory 64mb --maxmemory-policy allkeys-lru",
-          { stdio: "inherit" }
+            "-v easyoref-redis:/data " +
+            "redis:7-alpine redis-server --appendonly yes --maxmemory 64mb --maxmemory-policy allkeys-lru",
+          { stdio: "inherit" },
         );
       }
 
-      console.log("\n  → sudo systemctl restart easyoref");
-      execSync("sudo systemctl restart easyoref", { stdio: "inherit" });
+      // Restart all discovered instances
+      const svc = await import("./service.js");
+      console.log("\n  → restarting all instances...");
+      svc.restart();
 
       console.log("\n✅ EasyOref updated successfully!");
     } catch (err) {
@@ -65,37 +71,37 @@ switch (command) {
 
   case "uninstall": {
     const svc = await import("./service.js");
-    svc.uninstall();
+    svc.uninstall(arg);
     break;
   }
 
   case "start": {
     const svc = await import("./service.js");
-    svc.start();
+    svc.start(arg);
     break;
   }
 
   case "stop": {
     const svc = await import("./service.js");
-    svc.stop();
+    svc.stop(arg);
     break;
   }
 
   case "restart": {
     const svc = await import("./service.js");
-    svc.restart();
+    svc.restart(arg);
     break;
   }
 
   case "status": {
     const svc = await import("./service.js");
-    svc.status();
+    svc.status(arg);
     break;
   }
 
   case "logs": {
     const svc = await import("./service.js");
-    svc.logs();
+    svc.logs(arg);
     break;
   }
 
@@ -107,16 +113,19 @@ switch (command) {
   Usage:
     easyoref              Run the bot (foreground)
     easyoref init         Interactive setup wizard
-    easyoref update       Update to latest version
+    easyoref update       Update to latest version & restart all services
 
-  Service management:
-    easyoref install      Create systemd service & start
-    easyoref uninstall    Remove systemd service
-    easyoref start        Start service
-    easyoref stop         Stop service
-    easyoref restart      Restart service
-    easyoref status       Show service status
-    easyoref logs         Follow service logs
+  Service management (multi-instance aware):
+    easyoref install              Install service(s) for all configs in ~/.easyoref/
+    easyoref uninstall [name]     Remove service(s)
+    easyoref start     [name]     Start service(s)
+    easyoref stop      [name]     Stop service(s)
+    easyoref restart   [name]     Restart service(s)
+    easyoref status    [name]     Show service status
+    easyoref logs      [name]     Follow service logs
+
+  [name] is optional. If omitted, applies to all configured instances.
+  Example: easyoref restart ru_tlv-south
 `);
     break;
 

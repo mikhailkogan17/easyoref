@@ -62,6 +62,17 @@ gif_mode: none
 # data_dir: ./data
 # oref_api_url: https://www.oref.org.il/WarningMessages/alert/alerts.json
 
+# Redis key namespace for multi-instance deployments.
+# When running two instances on the same Redis, set a unique prefix per instance
+# so their keys and BullMQ queues don't collide.
+# Config file naming convention: config.<lang>_<area-slug>.yaml
+#   e.g. config.ru_tlv-south.yaml, config.he_tlv-south.yaml, config.en_petach-tikva.yaml
+# Example (instance 1): redis_prefix: ru_tlv-south  → keys: ru_tlv-south:session:active
+# Example (instance 2): redis_prefix: he_tlv-south  → keys: he_tlv-south:session:active
+# Env var alternative:  REDIS_PREFIX=ru_tlv-south
+# Omit (or leave empty) for single-instance deployments — backward-compatible.
+# redis_prefix: ""
+
 # ── AI Enrichment (optional) ─────────────────────
 # Enriches bot messages with data scraped from Telegram news channels via
 # GramJS MTProto + LangGraph. Edits the sent message in-place.

@@ -10,6 +10,7 @@ import { Bot } from "grammy";
 import yaml from "js-yaml";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { CONFIG_DIR, HOME_CONFIG_PATH } from "@easyoref/shared";
+import { install } from "./service.js";
 
 export async function init(): Promise<void> {
   console.log(chalk.bold("\n🚨 EasyOref Setup\n"));
@@ -94,9 +95,20 @@ export async function init(): Promise<void> {
   console.log("");
   console.log(chalk.green(`✅ ${t.saved} ${HOME_CONFIG_PATH}`));
   console.log("");
-  console.log(t.next);
-  console.log(`  ${chalk.cyan("npx easyoref")}`);
-  console.log("");
+
+  // ── 5. Install service ────────────────────────────────
+  const shouldInstall = await confirm({
+    message: t.installPrompt,
+    default: true,
+  });
+
+  if (shouldInstall) {
+    install();
+  } else {
+    console.log(t.next);
+    console.log(`  ${chalk.cyan("npx easyoref")}`);
+    console.log("");
+  }
 }
 
 // ── i18n strings for the wizard ────────────────────────
@@ -118,6 +130,7 @@ const STRINGS = {
     cityIdFormat: "Только цифры",
     saved: "Конфиг сохранён →",
     next: "Запустите бота:",
+    installPrompt: "⚙️  Установить как systemd-сервис сейчас?",
   },
   en: {
     token: "🤖 Bot token (from @BotFather):",
@@ -135,6 +148,7 @@ const STRINGS = {
     cityIdFormat: "Numbers only",
     saved: "Config saved →",
     next: "Start the bot:",
+    installPrompt: "⚙️  Install as a systemd service now?",
   },
   he: {
     token: "🤖 טוקן בוט (מ-@BotFather):",
@@ -152,6 +166,7 @@ const STRINGS = {
     cityIdFormat: "מספרים בלבד",
     saved: "הגדרות נשמרו →",
     next: "הפעילו את הבוט:",
+    installPrompt: "⚙️  להתקין כשירות systemd עכשיו?",
   },
   ar: {
     token: "🤖 رمز البوت (من @BotFather):",
@@ -169,5 +184,6 @@ const STRINGS = {
     cityIdFormat: "أرقام فقط",
     saved: "تم حفظ الإعدادات →",
     next: "شغّل البوت:",
+    installPrompt: "⚙️  هل تريد التثبيت كخدمة systemd الآن؟",
   },
 };

@@ -4,6 +4,10 @@
  * Job payload: { alertId, alertTs }
  * Job is added with a delay (config.agent.enrichDelayMs) after alert fires,
  * then the worker runs the LangGraph pipeline and edits the Telegram message.
+ *
+ * Queue name is scoped to the instance prefix: `{redisPrefix}:enrich-alert`
+ * (or plain `enrich-alert` when no prefix is set), ensuring two instances
+ * sharing the same Redis server don't process each other's jobs.
  */
 
 import * as logger from "@easyoref/monitoring";
@@ -15,11 +19,18 @@ export interface EnrichJobData {
   alertTs: number;
 }
 
+/** Scoped queue name — unique per instance */
+export function enrichQueueName(): string {
+  return config.redisPrefix
+    ? `${config.redisPrefix}:enrich-alert`
+    : "enrich-alert";
+}
+
 let _queue: Queue<EnrichJobData> | undefined = undefined;
 
 export function getEnrichQueue(): Queue<EnrichJobData> {
   if (!_queue) {
-    _queue = new Queue<EnrichJobData>("enrich-alert", {
+    _queue = new Queue<EnrichJobData>(enrichQueueName(), {
       connection: {
         host: new URL(config.agent.redisUrl).hostname,
         port: Number(new URL(config.agent.redisUrl).port || 6379),
@@ -49,5 +60,6 @@ export async function enqueueEnrich(
   logger.info("Enrich job enqueued", {
     alertId,
     delay_ms: delay,
+    queue: enrichQueueName(),
   });
 }

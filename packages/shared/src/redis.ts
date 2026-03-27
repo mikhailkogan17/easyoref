@@ -9,6 +9,7 @@ export function getRedis(): Redis {
     redis = new Redis(config.agent.redisUrl, {
       maxRetriesPerRequest: null, // Required by BullMQ
       lazyConnect: true,
+      keyPrefix: config.redisPrefix ? `${config.redisPrefix}:` : undefined,
     });
   }
   return redis;

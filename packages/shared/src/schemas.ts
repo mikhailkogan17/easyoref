@@ -160,8 +160,8 @@ export const ETAShhema = z.discriminatedUnion("kind", [
 export const Hit = z.object({
   type: z.enum(["direct", "shrapnel"]),
   count: z.number().min(1),
-  cities: z.set(z.string()).describe("e.g. Holon"),
-  aglomeration: z.set(z.string()).describe("e.g. Gush Dan or Sharon"),
+  cities: z.array(z.string()).describe("e.g. Holon"),
+  aglomeration: z.array(z.string()).describe("e.g. Gush Dan or Sharon"),
   macroregion: z.enum(["center", "north"]),
 });
 
@@ -192,7 +192,7 @@ export const InsightKind = z.discriminatedUnion("name", [
   z.object({
     kind: z.literal("country_origins"),
     value: z
-      .set(z.string())
+      .array(z.string())
       .min(1)
       .describe("Unique origin countries with per-country citation indices"),
   }),

@@ -15,6 +15,7 @@
  */
 
 import { getRedis } from "./redis.js";
+import { config } from "./config.js";
 import type {
   ActiveSessionType,
   AlertMetaType,
@@ -45,7 +46,35 @@ export async function ensureVersion(): Promise<void> {
   const stored = await redis.get(SCHEMA_VERSION_KEY);
 
   if (stored !== SCHEMA_VERSION) {
-    await redis.flushall();
+    // Scoped flush: delete only keys belonging to this instance.
+    // ioredis keyPrefix is transparent to the app — keys are stored in Redis
+    // as "{prefix}:{key}" but read/written without the prefix here.
+    // We must SCAN the raw Redis keyspace using the actual stored pattern.
+    const rawPattern = config.redisPrefix
+      ? `${config.redisPrefix}:*`
+      : "easyoref:*"; // no-prefix instances use a literal namespace guard
+
+    let cursor = "0";
+    do {
+      const [nextCursor, keys] = await redis.call(
+        "SCAN",
+        cursor,
+        "MATCH",
+        rawPattern,
+        "COUNT",
+        "100",
+      ) as [string, string[]];
+      cursor = nextCursor;
+      if (keys.length > 0) {
+        // Keys from SCAN are raw (include prefix) — strip prefix before DEL
+        // because ioredis will re-add it.
+        const stripped = config.redisPrefix
+          ? keys.map((k) => k.slice(`${config.redisPrefix}:`.length))
+          : keys;
+        await redis.del(...stripped);
+      }
+    } while (cursor !== "0");
+
     await redis.set(SCHEMA_VERSION_KEY, SCHEMA_VERSION);
   }
 }

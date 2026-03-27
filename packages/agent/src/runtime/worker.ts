@@ -24,7 +24,7 @@ import { Worker } from "bullmq";
 import { Bot } from "grammy";
 import { runEnrichment } from "../graph.js";
 import { MONITORING_RE, stripMonitoring } from "../nodes/edit-node.js";
-import { enqueueEnrich, type EnrichJobData } from "./queue.js";
+import { enqueueEnrich, enrichQueueName, type EnrichJobData } from "./queue.js";
 
 let _worker: Worker | undefined = undefined;
 
@@ -81,7 +81,7 @@ export function startEnrichWorker(): void {
   };
 
   _worker = new Worker<EnrichJobData>(
-    "enrich-alert",
+    enrichQueueName(),
     async (job) => {
       const { alertId } = job.data;
       logger.info("Enrich worker: processing job", { alertId, jobId: job.id });
