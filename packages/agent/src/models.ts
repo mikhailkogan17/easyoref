@@ -26,7 +26,7 @@ export const preFilterModel = new ChatOpenRouter({
   maxTokens: 200,
 });
 
-/** Fallback pre-filter model (free tier) */
+/** Fallback pre-filter model (free auto-router) */
 export const preFilterFallback = new ChatOpenRouter({
   apiKey: config.agent.apiKey,
   model: config.agent.filterFallbackModel,
@@ -47,7 +47,7 @@ export const extractModel = new ChatOpenRouter({
   maxTokens: 500,
 });
 
-/** Fallback extraction model (free tier) */
+/** Fallback extraction model (free auto-router) */
 export const extractFallback = new ChatOpenRouter({
   apiKey: config.agent.apiKey,
   model: config.agent.extractFallbackModel,
@@ -55,10 +55,10 @@ export const extractFallback = new ChatOpenRouter({
   maxTokens: 500,
 });
 
-/** Free model for cheap yes/no geography checks (resolve_area LLM-fallback) */
+/** Free auto-router model for cheap yes/no geography checks (resolve_area LLM-fallback) */
 export const freeModel = new ChatOpenRouter({
   apiKey: config.agent.apiKey,
-  model: config.agent.filterFallbackModel,
+  model: "openrouter/free",
   temperature: 0,
   maxTokens: 50,
 });
