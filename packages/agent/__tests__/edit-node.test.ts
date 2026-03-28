@@ -289,7 +289,7 @@ describe("sendMetaReply", () => {
     (config as any).language = original;
 
     const text = mockSendMessage.mock.calls[0][1] as string;
-    expect(text).toContain("טילים");   // Hebrew "rockets"
-    expect(text).toContain("הגעה");    // Hebrew "arrival"
+    expect(text).toContain("טילים");       // Hebrew "rockets"
+    expect(text).toContain("פגיעה משוערת"); // Hebrew "expected impact"
   });
 });
