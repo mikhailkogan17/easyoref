@@ -2,6 +2,17 @@
 import { readFileSync, writeFileSync, cpSync, rmSync } from "node:fs";
 import { execSync } from "node:child_process";
 
+// ── Dirty-tree guard ──────────────────────────────────────
+// Refuse to release if there are uncommitted or unstaged changes.
+// This prevents shipping code that wasn't part of a deliberate commit.
+const dirty = execSync("git status --porcelain", { encoding: "utf-8" }).trim();
+if (dirty) {
+  console.error("❌ Refusing to release: uncommitted changes detected.\n");
+  console.error(dirty);
+  console.error("\nCommit or stash your changes first.");
+  process.exit(1);
+}
+
 const args = process.argv.slice(2);
 const bumpType = args.find(a => a.startsWith("--bump-type="))?.split("=")[1] || "patch";
 
