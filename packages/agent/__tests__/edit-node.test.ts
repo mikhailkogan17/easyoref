@@ -10,8 +10,16 @@ import type { SynthesizedInsightType } from "@easyoref/shared";
 
 // ── Mocks ──────────────────────────────────────────────────
 
-const { mockSendMessage, mockGetActiveSession, mockSetActiveSession } = vi.hoisted(() => ({
+const {
+  mockSendMessage,
+  mockEditMessageText,
+  mockEditMessageCaption,
+  mockGetActiveSession,
+  mockSetActiveSession,
+} = vi.hoisted(() => ({
   mockSendMessage: vi.fn().mockResolvedValue({ message_id: 999 }),
+  mockEditMessageText: vi.fn().mockResolvedValue(true),
+  mockEditMessageCaption: vi.fn().mockResolvedValue(true),
   mockGetActiveSession: vi.fn(),
   mockSetActiveSession: vi.fn(),
 }));
@@ -19,7 +27,11 @@ const { mockSendMessage, mockGetActiveSession, mockSetActiveSession } = vi.hoist
 // Mock grammy Bot
 vi.mock("grammy", () => ({
   Bot: vi.fn().mockImplementation(() => ({
-    api: { sendMessage: mockSendMessage },
+    api: {
+      sendMessage: mockSendMessage,
+      editMessageText: mockEditMessageText,
+      editMessageCaption: mockEditMessageCaption,
+    },
   })),
 }));
 
@@ -47,8 +59,8 @@ vi.mock("@easyoref/monitoring", () => ({
 
 // ── Imports (after mocks) ──────────────────────────────────
 
-import { sendMetaReply } from "../src/nodes/edit-node.js";
-import type { TelegramTargetMessage } from "../src/nodes/edit-node.js";
+import { sendMetaReply, editTelegramMessage, editNode } from "../src/nodes/edit-node.js";
+import type { TelegramTargetMessage, EditMessageInput } from "../src/nodes/edit-node.js";
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -291,5 +303,107 @@ describe("sendMetaReply", () => {
     const text = mockSendMessage.mock.calls[0][1] as string;
     expect(text).toContain("טילים");       // Hebrew "rockets"
     expect(text).toContain("פגיעה משוערת"); // Hebrew "expected impact"
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+// editTelegramMessage — undefined synthesizedInsights guard
+// ─────────────────────────────────────────────────────────
+
+describe("editTelegramMessage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSetActiveSession.mockResolvedValue(undefined);
+    mockGetActiveSession.mockResolvedValue(makeSession());
+  });
+
+  const baseInput: EditMessageInput = {
+    alertId: "alert-1",
+    alertTs: Date.now(),
+    alertType: "red_alert",
+    chatId: "-1001234567890",
+    messageId: 100,
+    isCaption: false,
+    currentText: "🔴 Red Alert: Tel Aviv",
+    votedResult: undefined,
+    synthesizedInsights: [],
+  };
+
+  it("does NOT crash when synthesizedInsights is undefined (production bug)", async () => {
+    // This is the exact scenario that crashed in production on 2026-03-29:
+    // synthesize-node returned early without setting synthesizedInsights,
+    // so ReducedValue never fired and state.synthesizedInsights was undefined.
+    const input = {
+      ...baseInput,
+      synthesizedInsights: undefined as unknown as SynthesizedInsightType[],
+    };
+
+    // Should NOT throw — the ?? [] guard handles it
+    await expect(editTelegramMessage(input)).resolves.not.toThrow();
+  });
+
+  it("returns early when insights array is empty (no useful content)", async () => {
+    await editTelegramMessage(baseInput);
+
+    // No edits should be made — empty insights means hasContent is false
+    expect(mockEditMessageText).not.toHaveBeenCalled();
+    expect(mockEditMessageCaption).not.toHaveBeenCalled();
+  });
+
+  it("edits message when insights contain useful content", async () => {
+    const input: EditMessageInput = {
+      ...baseInput,
+      synthesizedInsights: makeInsights([
+        { key: "origin", value: "Iran" },
+        { key: "rocket_count", value: "10" },
+      ]),
+    };
+
+    await editTelegramMessage(input);
+
+    expect(mockEditMessageText).toHaveBeenCalledOnce();
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+// editNode — undefined state.synthesizedInsights guard
+// ─────────────────────────────────────────────────────────
+
+describe("editNode", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSetActiveSession.mockResolvedValue(undefined);
+    mockGetActiveSession.mockResolvedValue(makeSession());
+  });
+
+  it("does NOT crash when state.synthesizedInsights is undefined (production bug)", async () => {
+    // Minimal AgentStateType-like object with undefined synthesizedInsights
+    const state = {
+      messages: [],
+      alertId: "alert-1",
+      alertTs: Date.now(),
+      alertType: "red_alert" as const,
+      alertAreas: ["תל אביב"],
+      chatId: "-1001234567890",
+      messageId: 100,
+      isCaption: false,
+      currentText: "🔴 Red Alert",
+      votedResult: undefined,
+      synthesizedInsights: undefined as unknown as SynthesizedInsightType[],
+      clarifyAttempted: false,
+      extractedInsights: [],
+      filteredInsights: [],
+      previousInsights: [],
+      telegramMessages: [],
+    };
+
+    // Should NOT throw — the ?? [] guard handles it
+    const result = await editNode(state as any);
+    expect(result).toBeDefined();
+    expect(result.messages).toHaveLength(1);
+
+    // The AIMessage should contain synthesizedKeys: [] since insights were empty
+    const msgContent = JSON.parse(result.messages![0].content as string);
+    expect(msgContent.synthesizedKeys).toEqual([]);
   });
 });

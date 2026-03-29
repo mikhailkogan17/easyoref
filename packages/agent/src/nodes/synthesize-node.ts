@@ -53,6 +53,7 @@ export async function synthesizeNode(
   if (!votedResult || Object.keys(votedResult.consensus).length === 0) {
     return {
       messages: [new AIMessage("synthesize-node: no consensus to synthesize")],
+      synthesizedInsights: [],
     };
   }
 

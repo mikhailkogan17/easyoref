@@ -90,7 +90,7 @@ export const editTelegramMessage = async (
   if (!config.botToken) return;
 
   const tgBot = new Bot(config.botToken);
-  const insights = input.synthesizedInsights;
+  const insights = input.synthesizedInsights ?? [];
 
   const targets: TelegramTargetMessage[] = input.telegramMessages ?? [
     {
@@ -221,6 +221,8 @@ export const sendMetaReply = async (
 export const editNode = async (
   state: AgentStateType,
 ): Promise<Partial<AgentStateType>> => {
+  const synthesized = state.synthesizedInsights ?? [];
+
   await editTelegramMessage({
     alertId: state.alertId,
     alertTs: state.alertTs,
@@ -231,21 +233,21 @@ export const editNode = async (
     telegramMessages: state.telegramMessages,
     currentText: state.currentText,
     votedResult: state.votedResult,
-    synthesizedInsights: state.synthesizedInsights,
+    synthesizedInsights: synthesized,
     monitoringLabel: state.monitoringLabel,
   });
 
   const targets = state.telegramMessages ?? [
     { chatId: state.chatId, messageId: state.messageId, isCaption: state.isCaption },
   ];
-  await sendMetaReply(state.alertType, state.synthesizedInsights, targets);
+  await sendMetaReply(state.alertType, synthesized, targets);
 
   return {
     messages: [
       new AIMessage(
         JSON.stringify({
           node: "edit",
-          synthesizedKeys: state.synthesizedInsights.map((i) => i.key),
+          synthesizedKeys: synthesized.map((i) => i.key),
           targets: (state.telegramMessages ?? [{ chatId: state.chatId }]).length,
         }),
       ),
